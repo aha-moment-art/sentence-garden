@@ -1,0 +1,23 @@
+素材来源与许可 / Source notices
+
+This catalog reuses the owner's existing public projects, pinned to the revisions in index.json.
+Audio is streamed from the original files at those immutable GitHub revisions. No new speech is generated.
+Counts preserve original dictionary/date groupings and include duplicates across groups.
+
+British Ear: https://github.com/aha-moment-art/british-ear
+BritSpeak: https://github.com/aha-moment-art/BritSpeak
+Original speech clips, supplied transcripts and translations. Rights in underlying recordings remain with their respective owners; this integration does not assign them a new license.
+
+WordLeap: https://github.com/aha-moment-art/WordLeap
+Dictionary definitions: ECDICT, MIT license, reproduced in licenses/ECDICT-LICENSE.txt.
+PTE dictionary: Qwerty Learner, GPL-3.0, reproduced in licenses/QWERTY-LEARNER-GPL-3.0.txt.
+Corresponding source dictionary data is preserved in WordLeap/public/dicts at the revision listed in index.json; transformation source is scripts/import-projects.mjs in Sentence Garden.
+Tatoeba sentences: CC BY 2.0 FR, https://creativecommons.org/licenses/by/2.0/fr/
+Each Tatoeba example retains its sentence ID, contributor name when supplied, and link to the original sentence. Sentence text is unchanged; metadata is reformatted for practice.
+Original generated example/word recordings are reused, without regeneration.
+
+Level Up Cards: https://github.com/aha-moment-art/level-up-cards
+Original vocabulary cards retain examples and translations. UK/US pronunciation belongs to WORD entries, not sentence examples.
+Daily complete listening recordings retain the supplied BBC source links. These are separate from sentence/word recordings. Rights remain with the original owners.
+
+Sentence Garden code and original example content do not change the licenses of imported source materials.

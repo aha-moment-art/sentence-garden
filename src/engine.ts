@@ -1,5 +1,13 @@
 export type Phase = "copy" | "cloze" | "recall";
-export type Sentence = { id: string; en: string; zh: string };
+export type Recording = { label: string; url: string; text: string };
+export type Sentence = {
+  id: string;
+  en: string;
+  zh: string;
+  note?: string;
+  recordings?: Recording[];
+  credit?: { label: string; url: string };
+};
 export type Deck = { id: string; name: string; sentences: Sentence[] };
 export type Review = {
   step: number;
@@ -335,14 +343,51 @@ const obj = (v: unknown): v is Record<string, unknown> =>
 const str = (v: unknown, max = 2000): v is string =>
   typeof v === "string" && v.length <= max;
 const bool = (v: unknown) => typeof v === "boolean";
-function validSentence(v: unknown): v is Sentence {
+export function isProjectAudioUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const u = new URL(value);
+    return (
+      u.protocol === "https:" &&
+      u.hostname === "raw.githubusercontent.com" &&
+      !u.username &&
+      !u.password &&
+      !u.search &&
+      !u.hash &&
+      /^\/aha-moment-art\/(british-ear|WordLeap|BritSpeak|level-up-cards)\/[a-f0-9]{40}\/.+\.mp3$/.test(
+        u.pathname,
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+export function validSentence(v: unknown): v is Sentence {
   return (
     obj(v) &&
     str(v.id, 100) &&
     !!v.id &&
     str(v.en, 600) &&
     words(v.en).length > 0 &&
-    str(v.zh, 1000)
+    str(v.zh, 1000) &&
+    (v.note === undefined || str(v.note, 2000)) &&
+    (v.recordings === undefined ||
+      (Array.isArray(v.recordings) &&
+        v.recordings.length <= 3 &&
+        v.recordings.every(
+          (r) =>
+            obj(r) &&
+            str(r.label, 80) &&
+            str(r.text, 600) &&
+            isProjectAudioUrl(r.url),
+        ))) &&
+    (v.credit === undefined ||
+      (obj(v.credit) &&
+        str(v.credit.label, 250) &&
+        str(v.credit.url, 500) &&
+        /^https:\/\/(github\.com\/aha-moment-art\/|tatoeba\.org\/en\/sentences\/show\/)/.test(
+          v.credit.url,
+        )))
   );
 }
 export function validateState(value: unknown): State {
@@ -350,7 +395,7 @@ export function validateState(value: unknown): State {
     !obj(value) ||
     value.version !== 1 ||
     !Array.isArray(value.decks) ||
-    value.decks.length > 500 ||
+    value.decks.length > 1000 ||
     !obj(value.reviews) ||
     !obj(value.settings) ||
     !Array.isArray(value.history)
@@ -378,7 +423,7 @@ export function validateState(value: unknown): State {
       count++;
     }
   }
-  if (count > 10000) throw Error("一次最多导入 10,000 句。");
+  if (count > 100000) throw Error("一次最多导入 100,000 条练习内容。");
   for (const [id, r] of Object.entries(value.reviews))
     if (
       !ids.has(id) ||
@@ -471,7 +516,24 @@ export function validateState(value: unknown): State {
     decks: v.decks.map((d) => ({
       id: d.id,
       name: d.name,
-      sentences: d.sentences.map((s) => ({ id: s.id, en: s.en, zh: s.zh })),
+      sentences: d.sentences.map((s) => ({
+        id: s.id,
+        en: s.en,
+        zh: s.zh,
+        ...(s.note !== undefined ? { note: s.note } : {}),
+        ...(s.recordings
+          ? {
+              recordings: s.recordings.map((r) => ({
+                label: r.label,
+                url: r.url,
+                text: r.text,
+              })),
+            }
+          : {}),
+        ...(s.credit
+          ? { credit: { label: s.credit.label, url: s.credit.url } }
+          : {}),
+      })),
     })),
     reviews: Object.fromEntries(
       Object.entries(v.reviews).map(([id, r]) => [

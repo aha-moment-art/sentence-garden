@@ -1,4 +1,5 @@
 import bundled from "./demo-audio.json";
+import { isProjectAudioUrl, type Sentence } from "./engine";
 export type AudioClip = { text: string; audio: string };
 export type AudioPack = {
   format: "sentence-garden-audio";
@@ -40,9 +41,17 @@ export function mergeAudio(
     ...new Map([...existing, ...incoming].map((c) => [c.text, c])).values(),
   ]);
 }
-export function audioSource(text: string, clips: AudioClip[]) {
+export function audioSource(
+  text: string,
+  clips: AudioClip[],
+  sentence?: Sentence,
+) {
   const clip = clips.find((c) => c.text === text);
   if (clip) return clip.audio;
+  const recording = sentence?.recordings?.find(
+    (r) => r.text === text && isProjectAudioUrl(r.url),
+  );
+  if (recording) return recording.url;
   const relative = (bundled as Record<string, string>)[text];
   return typeof relative === "string"
     ? new URL(relative, document.baseURI).href

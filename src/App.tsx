@@ -44,8 +44,22 @@ import {
   type Session,
   type State,
 } from "./engine";
-import { readState, writeState, readAudio, replaceAudio, restoreAll } from "./storage";
-import { audioSource, validateAudio, mergeAudio, type AudioClip, type AudioPack } from "./audio";
+import {
+  readState,
+  writeState,
+  readAudio,
+  replaceAudio,
+  restoreAll,
+} from "./storage";
+import {
+  audioSource,
+  validateAudio,
+  mergeAudio,
+  type AudioClip,
+  type AudioPack,
+} from "./audio";
+import CatalogLibrary from "./CatalogLibrary";
+import { startCatalog } from "./catalog";
 
 const phaseInfo: Record<
   Phase,
@@ -265,11 +279,13 @@ function ChooseSession({
   initialDeckId,
   start,
   close,
+  browse,
 }: {
   decks: Deck[];
   initialDeckId: string;
   start: (deck: Deck, start: number, direct: boolean) => void;
   close: () => void;
+  browse: () => void;
 }) {
   const [deckId, setDeckId] = useState(
       decks.find((d) => d.id === initialDeckId)?.id ?? decks[0]?.id ?? "",
@@ -334,10 +350,15 @@ function ChooseSession({
       >
         开始这一组 <ArrowRight size={18} />
       </button>
+      <button className="button secondary full browse-catalog" onClick={browse}>
+        <BookOpen size={17} />
+        从四个项目的句库里选
+      </button>
     </Modal>
   );
 }
 export default function App() {
+  const [showCatalog, setShowCatalog] = useState(false);
   const [state, setState] = useState<State | null>(null),
     [bootError, setBootError] = useState(""),
     [storageError, setStorageError] = useState(""),
@@ -358,12 +379,15 @@ export default function App() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]),
     [speaking, setSpeaking] = useState(false),
     [clock, setClock] = useState(Date.now());
-  const [audioClips,setAudioClips]=useState<AudioClip[]>([]),[incomingAudio,setIncomingAudio]=useState<AudioClip[]>([]),[audioPack,setAudioPack]=useState<AudioPack|null>(null),[audioBusy,setAudioBusy]=useState(false);
+  const [audioClips, setAudioClips] = useState<AudioClip[]>([]),
+    [incomingAudio, setIncomingAudio] = useState<AudioClip[]>([]),
+    [audioPack, setAudioPack] = useState<AudioPack | null>(null),
+    [audioBusy, setAudioBusy] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null),
     nextRef = useRef<HTMLButtonElement>(null),
     fileRef = useRef<HTMLInputElement>(null),
     audioRef = useRef<AudioContext | null>(null),
-    narrationRef = useRef<HTMLAudioElement|null>(null),
+    narrationRef = useRef<HTMLAudioElement | null>(null),
     saveId = useRef(0);
   const speechSupported =
     typeof window !== "undefined" &&
@@ -371,8 +395,8 @@ export default function App() {
     typeof window.SpeechSynthesisUtterance !== "undefined";
   useEffect(() => {
     let active = true;
-    Promise.all([readState(),readAudio()])
-      .then(([s,clips]) => {
+    Promise.all([readState(), readAudio()])
+      .then(([s, clips]) => {
         if (active) {
           if (!s.session && s.decks[0]?.sentences.length)
             s.session = makeSession(
@@ -437,7 +461,9 @@ export default function App() {
   }, [notice]);
   const session = state?.session,
     task = session && !session.complete ? session.tasks[session.index] : null;
-  const currentAudio=task?audioSource(task.sentence.en,audioClips):null;
+  const currentAudio = task
+    ? audioSource(task.sentence.en, audioClips, task.sentence)
+    : null;
   useEffect(() => {
     if (page === "practice" && !modal && !incoming && !confirm && !editing) {
       if (session?.checked) nextRef.current?.focus();
@@ -455,12 +481,14 @@ export default function App() {
   ]);
   useEffect(() => {
     narrationRef.current?.pause();
-    narrationRef.current=null;
+    narrationRef.current = null;
     setSpeaking(false);
     if (speechSupported) {
       window.speechSynthesis.cancel();
     }
-    return ()=>{narrationRef.current?.pause();};
+    return () => {
+      narrationRef.current?.pause();
+    };
   }, [session?.index, session?.id, page, speechSupported]);
   useEffect(() => {
     const f = (e: BeforeUnloadEvent) => {
@@ -519,6 +547,33 @@ export default function App() {
     );
     setPage("practice");
     setModal(null);
+  };
+  const beginCatalog = (
+    id: string,
+    name: string,
+    items: Sentence[],
+    direct: boolean,
+  ) => {
+    const go = () => {
+      setState((prev) =>
+        prev ? startCatalog(prev, id, name, items, direct) : prev,
+      );
+      setSelectedDeck(`saved:${id}`);
+      setPage("practice");
+      setConfirm(null);
+    };
+    if (session && !session.complete)
+      setConfirm({
+        title: "开始这组练习？",
+        message: "当前未完成的练习会被替换，句库和已完成的复习记录会保留。",
+        action: go,
+      });
+    else go();
+  };
+  const browseCatalog = () => {
+    setModal(null);
+    setPage("library");
+    setShowCatalog(true);
   };
   const startReview = (sentences: Sentence[]) => {
     const go = () => {
@@ -599,22 +654,30 @@ export default function App() {
   const play = () => {
     if (!task || !session) return;
     if (speaking) {
-      if(speechSupported)window.speechSynthesis.cancel();
+      if (speechSupported) window.speechSynthesis.cancel();
       narrationRef.current?.pause();
       setSpeaking(false);
       return;
     }
-    if(currentAudio){
-      const audio=new Audio(currentAudio);narrationRef.current=audio;
-      audio.playbackRate=state.settings.rate;
-      audio.onended=()=>setSpeaking(false);
-      audio.onerror=()=>{setSpeaking(false);setNotice('音频暂时无法播放，请重新导入音频包或检查网络。');};
+    if (currentAudio) {
+      const audio = new Audio(currentAudio);
+      narrationRef.current = audio;
+      audio.playbackRate = state.settings.rate;
+      audio.onended = () => setSpeaking(false);
+      audio.onerror = () => {
+        setSpeaking(false);
+        setNotice("音频暂时无法播放，请重新导入音频包或检查网络。");
+      };
       setSpeaking(true);
-      if(task.phase==='recall')setSession({...session,currentHelp:true});
-      void audio.play().catch(()=>{setSpeaking(false);setNotice('播放未能启动，请再点一次朗读。');});
+      if (task.phase === "recall")
+        setSession({ ...session, currentHelp: true });
+      void audio.play().catch(() => {
+        setSpeaking(false);
+        setNotice("播放未能启动，请再点一次朗读。");
+      });
       return;
     }
-    if(!speechSupported)return;
+    if (!speechSupported) return;
     if (!voices.length) {
       setNotice("设备暂无可用的英语语音，仍可继续文字练习。");
       return;
@@ -633,9 +696,23 @@ export default function App() {
     window.speechSynthesis.speak(u);
   };
   const exportData = () => {
-    const blob = new Blob([JSON.stringify({...state,audioClips:audioClips.filter(c=>allSentences.some(s=>s.en===c.text))}, null, 2)], {
-      type: "application/json",
-    });
+    const blob = new Blob(
+      [
+        JSON.stringify(
+          {
+            ...state,
+            audioClips: audioClips.filter((c) =>
+              allSentences.some((s) => s.en === c.text),
+            ),
+          },
+          null,
+          2,
+        ),
+      ],
+      {
+        type: "application/json",
+      },
+    );
     const url = URL.createObjectURL(blob),
       a = document.createElement("a");
     a.href = url;
@@ -647,15 +724,27 @@ export default function App() {
     try {
       if (file.size > 100 * 1024 * 1024)
         throw Error("文件超过 100 MB，请分批导入。");
-      const value=JSON.parse(await file.text());
-      if(value?.format==='sentence-garden-audio'){
-        if(value.version!==1||typeof value.voice!=='string'||value.voice.length>120)throw Error('音频包版本或声音信息无效。');
-        const clips=validateAudio(value.clips);
-        if(!clips.length)throw Error('音频包里还没有音频。');
-        setAudioPack({format:'sentence-garden-audio',version:1,voice:value.voice,clips});
-      }else{
-        const data=validateState(value),clips=validateAudio(value.audioClips);
-        setIncoming(data);setIncomingAudio(clips);
+      const value = JSON.parse(await file.text());
+      if (value?.format === "sentence-garden-audio") {
+        if (
+          value.version !== 1 ||
+          typeof value.voice !== "string" ||
+          value.voice.length > 120
+        )
+          throw Error("音频包版本或声音信息无效。");
+        const clips = validateAudio(value.clips);
+        if (!clips.length) throw Error("音频包里还没有音频。");
+        setAudioPack({
+          format: "sentence-garden-audio",
+          version: 1,
+          voice: value.voice,
+          clips,
+        });
+      } else {
+        const data = validateState(value),
+          clips = validateAudio(value.audioClips);
+        setIncoming(data);
+        setIncomingAudio(clips);
       }
     } catch (e) {
       setNotice(
@@ -740,7 +829,10 @@ export default function App() {
           </button>
           <button
             className={page === "library" ? "nav-link active" : "nav-link"}
-            onClick={() => setPage("library")}
+            onClick={() => {
+              setPage("library");
+              setShowCatalog(false);
+            }}
           >
             <BookOpen size={18} />
             我的句库
@@ -776,13 +868,19 @@ export default function App() {
                   : "再见一面，记得更久。"}
             </h1>
           </div>
-          <button
-            className="button secondary import-button"
-            onClick={() => setModal("import")}
-          >
-            <Plus size={18} />
-            导入我的句子
-          </button>
+          <div className="page-actions">
+            <button className="button secondary" onClick={browseCatalog}>
+              <BookOpen size={18} />
+              项目句库
+            </button>
+            <button
+              className="button secondary import-button"
+              onClick={() => setModal("import")}
+            >
+              <Plus size={18} />
+              导入我的句子
+            </button>
+          </div>
         </div>
         {storageError && (
           <div role="alert" className="storage-alert">
@@ -855,7 +953,24 @@ export default function App() {
                       </div>
                     ))}
                   </div>
-                  {Number.isFinite(session.finished) && <p className="session-pace muted">练习节奏约 {Math.round(session.tasks.reduce((n,t)=>n+words(expected(t)).length,0)/Math.max(((session.finished??session.started)-session.started)/60000,1/60))} 词 / 分钟 · 包含思考与停顿时间</p>}
+                  {Number.isFinite(session.finished) && (
+                    <p className="session-pace muted">
+                      练习节奏约{" "}
+                      {Math.round(
+                        session.tasks.reduce(
+                          (n, t) => n + words(expected(t)).length,
+                          0,
+                        ) /
+                          Math.max(
+                            ((session.finished ?? session.started) -
+                              session.started) /
+                              60000,
+                            1 / 60,
+                          ),
+                      )}{" "}
+                      词 / 分钟 · 包含思考与停顿时间
+                    </p>
+                  )}
                   <div className="result-actions">
                     <button
                       className="button secondary"
@@ -965,6 +1080,19 @@ export default function App() {
                     )}
                     {task.phase !== "recall" && task.sentence.zh && (
                       <p className="translation">{task.sentence.zh}</p>
+                    )}
+                    {task.phase !== "recall" && task.sentence.note && (
+                      <p className="source-note">{task.sentence.note}</p>
+                    )}
+                    {task.sentence.credit && (
+                      <a
+                        className="catalog-credit"
+                        href={task.sentence.credit.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {task.sentence.credit.label}
+                      </a>
                     )}
                   </div>
                   <div className="typing-zone">
@@ -1090,9 +1218,16 @@ export default function App() {
                         <button
                           className="button quiet"
                           onClick={play}
-                          disabled={!currentAudio&&(!speechSupported || !voices.length)}
+                          disabled={
+                            !currentAudio &&
+                            (!speechSupported || !voices.length)
+                          }
                           title={
-                            currentAudio ? 'ElevenLabs 音频 · 播放不消耗生成额度' : !voices.length ? "导入音频包后即可朗读" : "这句话尚未导入音频，使用设备语音"
+                            currentAudio
+                              ? "已有配音 · 播放不消耗生成额度"
+                              : !voices.length
+                                ? "导入音频包后即可朗读"
+                                : "这句话尚未导入音频，使用设备语音"
                           }
                         >
                           {speaking ? (
@@ -1100,7 +1235,13 @@ export default function App() {
                           ) : (
                             <Volume2 size={18} />
                           )}
-                          <span>{speaking ? "停止" : currentAudio?'朗读':'设备朗读'}</span>
+                          <span>
+                            {speaking
+                              ? "停止"
+                              : currentAudio
+                                ? "朗读"
+                                : "设备朗读"}
+                          </span>
                         </button>
                         <button
                           className="button quiet"
@@ -1281,7 +1422,13 @@ export default function App() {
             </aside>
           </div>
         )}
-        {page === "library" && (
+        {page === "library" && showCatalog && (
+          <CatalogLibrary
+            back={() => setShowCatalog(false)}
+            start={beginCatalog}
+          />
+        )}
+        {page === "library" && !showCatalog && (
           <section className="library-layout">
             <aside className="side-card deck-sidebar">
               <div className="side-heading">
@@ -1322,7 +1469,13 @@ export default function App() {
                 <Upload size={16} />
                 从记录文件恢复
               </button>
-              <button className="button quiet full" onClick={()=>fileRef.current?.click()}><Headphones size={16}/>导入音频包</button>
+              <button
+                className="button quiet full"
+                onClick={() => fileRef.current?.click()}
+              >
+                <Headphones size={16} />
+                导入音频包
+              </button>
             </aside>
             <div className="library-card">
               <div className="library-heading">
@@ -1521,16 +1674,19 @@ export default function App() {
           close={() => setModal(null)}
           save={(d) => {
             if (
-              total + d.sentences.length > 10000 ||
-              state.decks.length >= 500
+              total + d.sentences.length > 100000 ||
+              state.decks.length >= 1000
             ) {
-              setNotice("句库最多支持 500 组、10,000 句，请先整理现有句库。");
+              setNotice(
+                "句库最多支持 1,000 组、100,000 句，请先整理现有句库。",
+              );
               return;
             }
             setState((p) => (p ? { ...p, decks: [...p.decks, d] } : p));
             setSelectedDeck(d.id);
             setModal(null);
             setPage("library");
+            setShowCatalog(false);
             setNotice(`已导入 ${d.sentences.length} 句。`);
           }}
         />
@@ -1540,6 +1696,7 @@ export default function App() {
           decks={state.decks}
           initialDeckId={selectedDeck}
           start={start}
+          browse={browseCatalog}
           close={() => setModal(null)}
         />
       )}
@@ -1594,10 +1751,22 @@ export default function App() {
           </label>
           <p className="muted voice-note">
             <Headphones size={18} />
-            优先播放 ElevenLabs 英音，已内置示例句音频。自己的句子可导入音频包，播放不消耗生成额度。
+            优先播放已导入的音频，其次使用原项目配音或示例英音。已有录音播放不消耗生成额度；未配音的句子使用设备语音。
           </p>
-          <p className="muted small">已导入 {audioClips.length} 条音频。没有对应音频时，按钮会显示“设备朗读”，使用本机可用语音；没有设备语音也能继续打字。</p>
-          <button className="button secondary full" onClick={()=>{setModal(null);fileRef.current?.click();}}><Headphones size={17}/>导入 ElevenLabs 音频包</button>
+          <p className="muted small">
+            已导入 {audioClips.length}{" "}
+            条音频。没有对应音频时，按钮会显示“设备朗读”，使用本机可用语音；没有设备语音也能继续打字。
+          </p>
+          <button
+            className="button secondary full"
+            onClick={() => {
+              setModal(null);
+              fileRef.current?.click();
+            }}
+          >
+            <Headphones size={17} />
+            导入 ElevenLabs 音频包
+          </button>
           <div className="settings-data">
             <h3>你的数据，由你保管</h3>
             <p>
@@ -1640,7 +1809,8 @@ export default function App() {
           </div>
           <p>
             文件包含 {Object.keys(incoming.reviews).length} 条复习安排
-            {incoming.session ? "，以及上次练习位置" : ""}，{incomingAudio.length} 条音频。
+            {incoming.session ? "，以及上次练习位置" : ""}，
+            {incomingAudio.length} 条音频。
           </p>
           <p className="warning">
             确认后将替换当前浏览器里的全部记录。如需保留当前数据，请先导出。
@@ -1654,13 +1824,19 @@ export default function App() {
               disabled={audioBusy}
               onClick={async () => {
                 setAudioBusy(true);
-                try{
-                  await restoreAll(incoming,incomingAudio);
-                  setState(incoming);setAudioClips(incomingAudio);
+                try {
+                  await restoreAll(incoming, incomingAudio);
+                  setState(incoming);
+                  setAudioClips(incomingAudio);
                   setSelectedDeck(incoming.decks[0]?.id ?? "");
-                  setIncoming(null);setPage("practice");setNotice("记录已恢复。");
-                }catch{setNotice('恢复未能保存，请检查浏览器可用空间后重试。');}
-                finally{setAudioBusy(false);}
+                  setIncoming(null);
+                  setPage("practice");
+                  setNotice("记录已恢复。");
+                } catch {
+                  setNotice("恢复未能保存，请检查浏览器可用空间后重试。");
+                } finally {
+                  setAudioBusy(false);
+                }
               }}
             >
               确认替换并恢复
@@ -1668,17 +1844,70 @@ export default function App() {
           </div>
         </Modal>
       )}
-      {audioPack&&<Modal title="导入句子音频" close={()=>{if(!audioBusy)setAudioPack(null);}}>
-        <p>声音：{audioPack.voice}</p>
-        <div className="restore-stats"><strong>{audioPack.clips.filter(c=>allSentences.some(s=>s.en===c.text)).length}</strong> 条匹配你的句库，共 {audioPack.clips.length} 条音频</div>
-        <p className="muted">按完整英文句子自动匹配，标点也需要一致。只导入匹配的音频；已有音频将被替换，练习进度保持不变。</p>
-        <div className="modal-actions"><button className="button secondary" disabled={audioBusy} onClick={()=>setAudioPack(null)}>取消</button><button className="button primary" disabled={audioBusy||!audioPack.clips.some(c=>allSentences.some(s=>s.en===c.text))} onClick={async()=>{
-          setAudioBusy(true);
-          try{const matched=audioPack.clips.filter(c=>allSentences.some(s=>s.en===c.text));const merged=mergeAudio(audioClips,matched);await replaceAudio(merged);setAudioClips(merged);setAudioPack(null);setNotice(`已导入 ${matched.length} 条音频。`);}
-          catch(e){setNotice(e instanceof Error?e.message:'音频未能保存，请检查浏览器可用空间。');}
-          finally{setAudioBusy(false);}
-        }}>{audioBusy?'正在保存…':'确认导入音频'}</button></div>
-      </Modal>}
+      {audioPack && (
+        <Modal
+          title="导入句子音频"
+          close={() => {
+            if (!audioBusy) setAudioPack(null);
+          }}
+        >
+          <p>声音：{audioPack.voice}</p>
+          <div className="restore-stats">
+            <strong>
+              {
+                audioPack.clips.filter((c) =>
+                  allSentences.some((s) => s.en === c.text),
+                ).length
+              }
+            </strong>{" "}
+            条匹配你的句库，共 {audioPack.clips.length} 条音频
+          </div>
+          <p className="muted">
+            按完整英文句子自动匹配，标点也需要一致。只导入匹配的音频；已有音频将被替换，练习进度保持不变。
+          </p>
+          <div className="modal-actions">
+            <button
+              className="button secondary"
+              disabled={audioBusy}
+              onClick={() => setAudioPack(null)}
+            >
+              取消
+            </button>
+            <button
+              className="button primary"
+              disabled={
+                audioBusy ||
+                !audioPack.clips.some((c) =>
+                  allSentences.some((s) => s.en === c.text),
+                )
+              }
+              onClick={async () => {
+                setAudioBusy(true);
+                try {
+                  const matched = audioPack.clips.filter((c) =>
+                    allSentences.some((s) => s.en === c.text),
+                  );
+                  const merged = mergeAudio(audioClips, matched);
+                  await replaceAudio(merged);
+                  setAudioClips(merged);
+                  setAudioPack(null);
+                  setNotice(`已导入 ${matched.length} 条音频。`);
+                } catch (e) {
+                  setNotice(
+                    e instanceof Error
+                      ? e.message
+                      : "音频未能保存，请检查浏览器可用空间。",
+                  );
+                } finally {
+                  setAudioBusy(false);
+                }
+              }}
+            >
+              {audioBusy ? "正在保存…" : "确认导入音频"}
+            </button>
+          </div>
+        </Modal>
+      )}
       {confirm && (
         <Modal title={confirm.title} close={() => setConfirm(null)}>
           <p className="confirm-message">{confirm.message}</p>
