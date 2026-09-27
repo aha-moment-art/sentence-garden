@@ -855,6 +855,7 @@ export default function App() {
                       </div>
                     ))}
                   </div>
+                  {Number.isFinite(session.finished) && <p className="session-pace muted">练习节奏约 {Math.round(session.tasks.reduce((n,t)=>n+words(expected(t)).length,0)/Math.max(((session.finished??session.started)-session.started)/60000,1/60))} 词 / 分钟 · 包含思考与停顿时间</p>}
                   <div className="result-actions">
                     <button
                       className="button secondary"
