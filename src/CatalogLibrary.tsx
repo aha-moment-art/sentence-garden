@@ -81,6 +81,7 @@ export default function CatalogLibrary({
     };
   }, [selected, mode, page, project]);
   const choose = (s: CatalogSummary) => {
+    if (s.id !== selected?.id) setCollection(null);
     setSelected(s);
     setMode("sentences");
   };
@@ -114,7 +115,7 @@ export default function CatalogLibrary({
   const maxPage = Math.max(1, Math.ceil(rows.length / 20)),
     maxGroup = Math.max(1, Math.ceil(rows.length / 5));
   const launch = (offset: number) => {
-    if (!collection) return;
+    if (!collection || collection.id !== selected?.id) return;
     start(
       `${collection.id}:${mode}`,
       `${names[collection.project]} · ${collection.name}${mode === "words" ? " · 词汇" : ""}`,
