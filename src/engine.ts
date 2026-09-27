@@ -44,7 +44,7 @@ export type State = {
   version: 1;
   decks: Deck[];
   reviews: Record<string, Review>;
-  settings: { strict: boolean; sound: boolean; rate: number };
+  settings: { strict: boolean; sound: boolean; rate: number; soundVersion?: 1 };
   session: Session | null;
   history: { id: string; date: string; count: number; independent: number }[];
 };
@@ -333,7 +333,7 @@ export function initialState(): State {
       },
     ],
     reviews: {},
-    settings: { strict: false, sound: false, rate: 0.85 },
+    settings: { strict: false, sound: true, rate: 0.85, soundVersion: 1 },
     session: null,
     history: [],
   };
@@ -548,7 +548,8 @@ export function validateState(value: unknown): State {
     ),
     settings: {
       strict: v.settings.strict,
-      sound: v.settings.sound,
+      sound: v.settings.soundVersion === 1 ? v.settings.sound : true,
+      soundVersion: 1,
       rate: v.settings.rate,
     },
     session: v.session,

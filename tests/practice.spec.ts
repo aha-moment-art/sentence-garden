@@ -1,10 +1,14 @@
 import { test, expect, type Page } from "@playwright/test";
 async function submit(page: Page, text: string) {
   await page.locator("#typing-input").fill(text);
-  await page.locator("#typing-input").press("Enter");
   await expect(page.locator(".success-feedback")).toBeVisible();
-  await expect(page.locator(".typing-actions>.primary")).toBeFocused();
-  await page.locator(".typing-actions>.primary").press("Enter");
+  await expect
+    .poll(
+      async () =>
+        (await page.locator(".result-card").count()) > 0 ||
+        (await page.locator("#typing-input").isEnabled()),
+    )
+    .toBe(true);
 }
 async function importOwn(page: Page) {
   await page.getByRole("button", { name: "导入我的句子" }).click();
@@ -92,13 +96,11 @@ test("complete group, correction, hints, retry, review and portable records", as
   const restored = await context.newPage();
   await restored.goto(new URL("./", page.url()).toString());
   await restored.locator("#typing-input").waitFor();
-  await restored
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "records.json",
-      mimeType: "application/json",
-      buffer,
-    });
+  await restored.locator("input[type=file]").setInputFiles({
+    name: "records.json",
+    mimeType: "application/json",
+    buffer,
+  });
   await expect(
     restored.getByRole("heading", { name: "恢复之前的练习记录" }),
   ).toBeVisible();
@@ -168,13 +170,11 @@ test("rejects malformed imports without replacing records", async ({
 }) => {
   await page.goto("/");
   await page.locator("#typing-input").fill("Small");
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "bad.json",
-      mimeType: "application/json",
-      buffer: Buffer.from('{"version":99}'),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "bad.json",
+    mimeType: "application/json",
+    buffer: Buffer.from('{"version":99}'),
+  });
   await expect(page.getByRole("status")).toContainText("文件格式不正确");
   await expect(page.locator("#typing-input")).toHaveValue("Small");
 });

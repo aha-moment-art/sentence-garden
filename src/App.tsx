@@ -34,6 +34,7 @@ import {
   firstUnfinishedWord,
   makeSession,
   maskIndices,
+  matches,
   nextSession,
   uid,
   validateState,
@@ -60,6 +61,7 @@ import {
 } from "./audio";
 import CatalogLibrary from "./CatalogLibrary";
 import { startCatalog } from "./catalog";
+import { KeyboardSound } from "./keyboard-sound";
 
 const phaseInfo: Record<
   Phase,
@@ -386,13 +388,21 @@ export default function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null),
     nextRef = useRef<HTMLButtonElement>(null),
     fileRef = useRef<HTMLInputElement>(null),
-    audioRef = useRef<AudioContext | null>(null),
+    keyboardRef = useRef<KeyboardSound | null>(null),
+    composingRef = useRef(false),
     narrationRef = useRef<HTMLAudioElement | null>(null),
     saveId = useRef(0);
   const speechSupported =
     typeof window !== "undefined" &&
     typeof window.speechSynthesis !== "undefined" &&
     typeof window.SpeechSynthesisUtterance !== "undefined";
+  useEffect(
+    () => () => {
+      keyboardRef.current?.close();
+      keyboardRef.current = null;
+    },
+    [],
+  );
   useEffect(() => {
     let active = true;
     Promise.all([readState(), readAudio()])
@@ -464,6 +474,46 @@ export default function App() {
   const currentAudio = task
     ? audioSource(task.sentence.en, audioClips, task.sentence)
     : null;
+  useEffect(() => {
+    if (
+      !session?.checked ||
+      session.complete ||
+      page !== "practice" ||
+      modal ||
+      incoming ||
+      confirm ||
+      editing ||
+      audioPack
+    )
+      return;
+    const timer = setTimeout(() => {
+      setState((previous) => {
+        const current = previous?.session;
+        if (
+          !previous ||
+          !current ||
+          current.id !== session.id ||
+          current.index !== session.index ||
+          !current.checked ||
+          current.complete
+        )
+          return previous;
+        return finishState(previous, nextSession(current));
+      });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [
+    session?.id,
+    session?.index,
+    session?.checked,
+    session?.complete,
+    page,
+    modal,
+    incoming,
+    confirm,
+    editing,
+    audioPack,
+  ]);
   useEffect(() => {
     if (page === "practice" && !modal && !incoming && !confirm && !editing) {
       if (session?.checked) nextRef.current?.focus();
@@ -598,25 +648,10 @@ export default function App() {
   };
   const tick = () => {
     if (!state.settings.sound) return;
-    try {
-      audioRef.current ??= new AudioContext();
-      const ctx = audioRef.current;
-      void ctx.resume();
-      const o = ctx.createOscillator(),
-        g = ctx.createGain();
-      o.type = "sine";
-      o.frequency.setValueAtTime(460, ctx.currentTime);
-      g.gain.setValueAtTime(0.025, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.035);
-      o.connect(g);
-      g.connect(ctx.destination);
-      o.start();
-      o.stop(ctx.currentTime + 0.04);
-    } catch {
-      /* Sound is optional. */
-    }
+    keyboardRef.current ??= new KeyboardSound();
+    keyboardRef.current.play();
   };
-  const updateInput = (value: string) => {
+  const updateInput = (value: string, composing = false) => {
     if (!session || !task) return;
     const hasError =
       task.phase === "copy" &&
@@ -626,7 +661,10 @@ export default function App() {
     setSession({
       ...session,
       input: value,
-      checked: null,
+      checked:
+        !composing && matches(expected(task), value, session.strict)
+          ? true
+          : null,
       currentError: session.currentError || hasError,
     });
   };
@@ -862,7 +900,7 @@ export default function App() {
             </div>
             <h1>
               {page === "practice"
-                ? "让每一句，慢慢成为你的。"
+                ? "把句子敲熟，把表达记住。"
                 : page === "library"
                   ? "收藏表达，也练习表达。"
                   : "再见一面，记得更久。"}
@@ -1128,13 +1166,24 @@ export default function App() {
                           ? "Type the missing words…"
                           : "Start typing here…"
                       }
-                      onChange={(e) => updateInput(e.target.value)}
+                      onChange={(e) => {
+                        tick();
+                        updateInput(e.target.value, composingRef.current);
+                      }}
+                      onCompositionStart={() => {
+                        composingRef.current = true;
+                      }}
+                      onCompositionEnd={(e) => {
+                        composingRef.current = false;
+                        updateInput(e.currentTarget.value);
+                      }}
                       onKeyDown={(e) => {
                         if (e.nativeEvent.isComposing) return;
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
+                          tick();
                           check();
-                        } else if (e.key.length === 1) tick();
+                        }
                       }}
                     />
                     {session.hint > 0 && (
@@ -1208,7 +1257,7 @@ export default function App() {
                               ? "修正完成，很好。稍后再回忆一次。"
                               : task.phase === "recall"
                                 ? "独立想起来了，本轮通过！"
-                                : "这一句完成，继续保持。"}
+                                : "正确！正在进入下一句…"}
                           </span>
                         </div>
                       )}
@@ -1417,7 +1466,7 @@ export default function App() {
                 </button>
               </div>
               <p className="side-footnote">
-                <Keyboard size={15} /> Enter 核对 · 通过后 Enter 继续
+                <Keyboard size={15} /> 输入正确后自动继续 · Enter 核对错误
               </p>
             </aside>
           </div>
@@ -1729,7 +1778,7 @@ export default function App() {
               }
             />
             <span>
-              轻柔击键音<small>给每次输入一点反馈，随时可以关闭。</small>
+              机械键盘声<small>清脆的敲击节奏，默认开启，随时可以关闭。</small>
             </span>
           </label>
           <label className="field range-label">
