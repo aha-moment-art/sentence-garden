@@ -55,6 +55,7 @@ import {
 } from "./storage";
 import {
   audioSource,
+  audioLabel,
   validateAudio,
   mergeAudio,
   type AudioClip,
@@ -1389,7 +1390,7 @@ export default function App() {
                           }
                           title={
                             currentAudio
-                              ? "已有配音 · 播放不消耗生成额度"
+                              ? `${audioLabel(task.sentence.en, audioClips, task.sentence)} · 播放不消耗生成额度`
                               : !voices.length
                                 ? "导入音频包后即可朗读"
                                 : "这句话尚未导入音频，使用设备语音"
@@ -1408,6 +1409,9 @@ export default function App() {
                                 : "设备朗读"}
                           </span>
                         </button>
+                        <small className="audio-source" aria-label="音频来源">
+                          {audioLabel(task.sentence.en, audioClips, task.sentence)}
+                        </small>
                         <button
                           className="button quiet"
                           disabled={

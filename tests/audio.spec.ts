@@ -33,6 +33,8 @@ test("real ElevenLabs MP3 decodes, audio pack persists, and export retains it", 
   );
   const clip = {
     text: "Small steps lead to meaningful progress.",
+    voice: "George",
+    model: "eleven_multilingual_v2",
     audio: `data:audio/mpeg;base64,${bytes.toString("base64")}`,
   };
   const pack = {
@@ -56,6 +58,7 @@ test("real ElevenLabs MP3 decodes, audio pack persists, and export retains it", 
   await expect(page.getByRole("status")).toContainText("已导入 1 条音频");
   await expect(page.locator("#typing-input")).toHaveValue("Small steps");
   await page.reload();
+  await expect(page.getByLabel("音频来源", {exact:true})).toHaveText("导入配音 · George");
   await expect
     .poll(() => page.evaluate(() => (window as any).__lastAudio?.src ?? ""))
     .toMatch(/^data:audio\/mpeg/);

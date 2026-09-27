@@ -30,8 +30,8 @@ test("four projects load on demand, paginate, preserve recordings through practi
   await page.getByLabel("搜索项目内容").fill("abandon");
   await expect(page.locator(".catalog-row").first()).toContainText(/abandon/i);
   await page.locator(".project-card").filter({ hasText: "Level Up" }).click();
-  await expect(page.locator(".catalog-info")).toContainText("例句没有独立配音");
-  await expect(page.locator(".catalog-row-actions .quiet")).toHaveCount(0);
+  await expect(page.locator(".catalog-info")).toContainText("ElevenLabs 四种英音");
+  await expect(page.locator(".catalog-row-actions .quiet")).toHaveCount(20);
   await expect(page.locator(".catalog-tracks audio")).toHaveCount(2);
   await page.getByRole("button", { name: "词汇练习", exact: true }).click();
   await expect(

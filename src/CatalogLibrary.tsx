@@ -15,6 +15,7 @@ import {
   type CatalogSummary,
 } from "./catalog";
 import type { Sentence, Recording } from "./engine";
+import { audioSource, audioLabel } from "./audio";
 const names: Record<string, string> = {
   "british-ear": "British Ear",
   WordLeap: "WordLeap",
@@ -296,7 +297,7 @@ export default function CatalogLibrary({
                   </div>
                   {project === "level-up-cards" && mode === "sentences" && (
                     <p className="catalog-info">
-                      原卡片提供的是单词发音，例句没有独立配音。句子练习保留原文与译文；原有英美音可在“词汇练习”里播放。
+                      例句新增 ElevenLabs 四种英音，按句固定分配；原有单词英美音仍在“词汇练习”里播放。
                     </p>
                   )}
                   <div className="library-card catalog-rows" ref={region}>
@@ -330,9 +331,18 @@ export default function CatalogLibrary({
                                 {r.label}
                               </button>
                             ))}
-                            {!s.recordings?.length && (
+                            {!s.recordings?.length && audioSource(s.en, [], s) && (
+                              <button className="button quiet" onClick={() => play({
+                                label: audioLabel(s.en, [], s),
+                                text: s.en,
+                                url: audioSource(s.en, [], s)!,
+                              })}>
+                                <Volume2 size={15} />{audioLabel(s.en, [], s)}
+                              </button>
+                            )}
+                            {!s.recordings?.length && !audioSource(s.en, [], s) && (
                               <span className="no-source-audio">
-                                原项目无独立配音
+                                暂无独立配音 · 练习时使用设备朗读
                               </span>
                             )}
                             <button

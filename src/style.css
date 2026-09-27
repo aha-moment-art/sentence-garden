@@ -971,8 +971,14 @@ main {
   margin-top: 21px;
 }
 .assist-actions {
+  flex-wrap: wrap;
+  align-items: center;
   display: flex;
   gap: 6px;
+}
+.audio-source {
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 .keycap {
   display: flex;
