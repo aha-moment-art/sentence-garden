@@ -68,6 +68,16 @@ test("dictation hides the original, autoplays and replays real audio without hin
     };
   });
   await page.goto("./");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => Number((window as any).__audios?.at(-1)?.duration) || 0,
+      ),
+    )
+    .toBeGreaterThan(1);
+  await page.evaluate(() => {
+    (window as any).__audios = [];
+  });
   await page.getByRole("button", { name: "听写", exact: true }).click();
   await expect(page.locator(".dictation-prompt")).toBeVisible();
   await expect(page.locator(".target-sentence")).toHaveCount(0);

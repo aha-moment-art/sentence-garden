@@ -11,6 +11,7 @@ export default function TypingSurface({
   onCheck,
   onSound,
   onReplay,
+  onActivate,
 }: {
   target: string;
   value: string;
@@ -22,6 +23,7 @@ export default function TypingSurface({
   onCheck: () => void;
   onSound: () => void;
   onReplay: () => void;
+  onActivate: () => void;
 }) {
   const composing = useRef(false);
   const characters = reveal
@@ -66,6 +68,7 @@ export default function TypingSurface({
         maxLength={1200}
         value={value}
         disabled={checked === true}
+        onPointerDown={onActivate}
         onChange={(e) => {
           onSound();
           onInput(e.target.value, composing.current);
@@ -78,6 +81,7 @@ export default function TypingSurface({
           onInput(e.currentTarget.value, false);
         }}
         onKeyDown={(e) => {
+          onActivate();
           if (e.nativeEvent.isComposing) return;
           if (e.altKey && (e.code === "KeyR" || e.key.toLowerCase() === "r")) {
             e.preventDefault();

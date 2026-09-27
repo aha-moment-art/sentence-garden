@@ -58,14 +58,13 @@ test("complete group, correction, hints, retry, review and portable records", as
   };
   legacy.decks = [deck];
   legacy.session = makeSession(deck.name, deck.sentences, false);
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "legacy.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify(legacy)),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "legacy.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(legacy)),
+  });
   await page.getByRole("button", { name: "确认替换并恢复" }).click();
+  await expect(page.getByText('记录已恢复。',{exact:true})).toBeVisible();
   await page.locator("#typing-input").fill("Practice makes");
   await page.locator("#typing-input").press("Enter");
   await expect(page.locator(".diff.missing")).toHaveText("漏：progress");
@@ -174,9 +173,7 @@ test("strict mode and unavailable speech have usable fallbacks", async ({
   await page.goto("/");
   // A browser without Web Speech must never prevent typing.
   await expect(page.locator("#typing-input")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "朗读", exact: true }),
-  ).toBeEnabled();
+  await expect(page.locator(".assist-actions>button").first()).toBeEnabled();
   await page.getByRole("button", { name: "练习设置" }).click();
   await page.getByLabel("严格核对").check();
   await page.getByRole("button", { name: "关闭弹窗" }).click();

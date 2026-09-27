@@ -395,6 +395,7 @@ export default function App() {
     keyboardRef = useRef<KeyboardSound | null>(null),
     playRef = useRef<() => void>(() => {}),
     autoPlayed = useRef(""),
+    pendingAutoAudio = useRef(false),
     narrationRef = useRef<HTMLAudioElement | null>(null),
     saveId = useRef(0);
   const speechSupported =
@@ -483,7 +484,7 @@ export default function App() {
     : null;
   useEffect(() => {
     if (
-      session?.mode !== "dictation" ||
+      !session ||
       !task ||
       page !== "practice" ||
       modal ||
@@ -759,8 +760,9 @@ export default function App() {
       );
     setSession(n);
   };
-  const play = (restart = false) => {
+  const play = (restart = false, automatic = false) => {
     if (!task || !session) return;
+    pendingAutoAudio.current = false;
     if (speaking && !restart) {
       if (speechSupported) window.speechSynthesis.cancel();
       narrationRef.current?.pause();
@@ -781,11 +783,16 @@ export default function App() {
         setNotice("音频暂时无法播放，请重新导入音频包或检查网络。");
       };
       setSpeaking(true);
-      if (task.phase === "recall" && session.mode !== "dictation")
+      if (!automatic && task.phase === "recall" && session.mode !== "dictation")
         setSession({ ...session, currentHelp: true });
-      void audio.play().catch(() => {
+      void audio.play().catch((error: DOMException) => {
         setSpeaking(false);
-        setNotice("播放未能启动，请再点一次朗读。");
+        pendingAutoAudio.current = error.name === "NotAllowedError";
+        setNotice(
+          pendingAutoAudio.current
+            ? "点击句子或开始打字，即可开启自动朗读。"
+            : "播放未能启动，请再点一次朗读。",
+        );
       });
       return;
     }
@@ -799,16 +806,21 @@ export default function App() {
     u.lang = u.voice.lang;
     u.rate = state.settings.rate;
     u.onend = () => setSpeaking(false);
-    u.onerror = () => {
+    u.onerror = (event) => {
       setSpeaking(false);
-      setNotice("这次朗读未能播放，请检查设备语音设置。");
+      pendingAutoAudio.current = event.error === "not-allowed";
+      setNotice(
+        pendingAutoAudio.current
+          ? "点击句子或开始打字，即可开启自动朗读。"
+          : "这次朗读未能播放，请检查设备语音设置。",
+      );
     };
-    if (task.phase === "recall" && session.mode !== "dictation")
+    if (!automatic && task.phase === "recall" && session.mode !== "dictation")
       setSession({ ...session, currentHelp: true });
     setSpeaking(true);
     window.speechSynthesis.speak(u);
   };
-  playRef.current = () => play(true);
+  playRef.current = () => play(true, true);
   const surface = (reveal: boolean) =>
     task && session ? (
       <TypingSurface
@@ -822,6 +834,12 @@ export default function App() {
         onCheck={check}
         onSound={tick}
         onReplay={() => play(true)}
+        onActivate={() => {
+          if (pendingAutoAudio.current) {
+            pendingAutoAudio.current = false;
+            playRef.current();
+          }
+        }}
       />
     ) : null;
   const exportData = () => {

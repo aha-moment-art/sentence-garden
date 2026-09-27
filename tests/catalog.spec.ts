@@ -63,9 +63,7 @@ test("four projects load on demand, paginate, preserve recordings through practi
   await page.getByRole("button", { name: "练这 5 条" }).click();
   await page.getByRole("button", { name: "确认", exact: true }).click();
   await expect(page.locator(".target-sentence")).toHaveText(sentence);
-  await expect(
-    page.getByRole("button", { name: "朗读", exact: true }),
-  ).toBeEnabled();
+  await expect(page.locator(".assist-actions>button").first()).toBeEnabled();
   await page.locator("#typing-input").fill(sentence.slice(0, 6));
   await expect(page.getByText("练习位置已保存", { exact: true })).toBeVisible();
   await page.reload();
@@ -87,17 +85,15 @@ test("four projects load on demand, paginate, preserve recordings through practi
   const restored = await context.newPage();
   await restored.goto(new URL("./", page.url()).toString());
   await expect(restored.locator("#typing-input")).toBeVisible();
-  await restored
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "records.json",
-      mimeType: "application/json",
-      buffer,
-    });
+  await restored.locator("input[type=file]").setInputFiles({
+    name: "records.json",
+    mimeType: "application/json",
+    buffer,
+  });
   await restored.getByRole("button", { name: "确认替换并恢复" }).click();
   await expect(restored.locator(".target-sentence")).toHaveText(sentence);
   await expect(
-    restored.getByRole("button", { name: "朗读", exact: true }),
+    restored.locator(".assist-actions>button").first(),
   ).toBeEnabled();
   await context.close();
   expect(errors).toEqual([]);
