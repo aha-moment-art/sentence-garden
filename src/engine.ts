@@ -1,4 +1,5 @@
 export type Phase = "copy" | "cloze" | "recall";
+export type PracticeMode = "typing" | "dictation";
 export type Recording = { label: string; url: string; text: string };
 export type Sentence = {
   id: string;
@@ -24,6 +25,7 @@ export type Result = {
 };
 export type Task = { sentence: Sentence; phase: Phase; retry: boolean };
 export type Session = {
+  mode?: PracticeMode;
   id: string;
   name: string;
   tasks: Task[];
@@ -44,7 +46,13 @@ export type State = {
   version: 1;
   decks: Deck[];
   reviews: Record<string, Review>;
-  settings: { strict: boolean; sound: boolean; rate: number; soundVersion?: 1 };
+  settings: {
+    strict: boolean;
+    sound: boolean;
+    rate: number;
+    soundVersion?: 1;
+    practiceMode?: PracticeMode;
+  };
   session: Session | null;
   history: { id: string; date: string; count: number; independent: number }[];
 };
@@ -100,9 +108,16 @@ export function makeSession(
   sentences: Sentence[],
   strict: boolean,
   direct = false,
+  mode?: PracticeMode,
 ): Session {
-  const phases: Phase[] = direct ? ["recall"] : ["copy", "cloze", "recall"];
+  const phases: Phase[] =
+    mode === "typing"
+      ? ["copy"]
+      : mode === "dictation" || direct
+        ? ["recall"]
+        : ["copy", "cloze", "recall"];
   return {
+    ...(mode ? { mode } : {}),
     id: uid(),
     name,
     tasks: phases.flatMap((phase) =>
@@ -145,7 +160,7 @@ export function nextSession(s: Session): Session {
     ...previous,
     help: previous.help || s.currentHelp,
     error: previous.error || s.currentError,
-    ...(task.phase === "recall"
+    ...(task.phase === "recall" || s.mode === "typing"
       ? {
           recalled: true,
           lastClean: clean,
@@ -162,7 +177,11 @@ export function nextSession(s: Session): Session {
     ];
     const retries: Task[] = sentences
       .filter((t) => results[t.id]?.help || results[t.id]?.error)
-      .map((sentence) => ({ sentence, phase: "recall", retry: true }));
+      .map((sentence) => ({
+        sentence,
+        phase: s.mode === "typing" ? "copy" : "recall",
+        retry: true,
+      }));
     tasks = [...tasks, ...retries];
     retryAdded = true;
   }
@@ -269,25 +288,68 @@ export function firstUnfinishedWord(target: string, input: string) {
     ""
   );
 }
+function characterUnits(text: string, strict: boolean, trailingSpace = false) {
+  const chars = Array.from(text);
+  const units: { char: string; index: number }[] = [];
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (strict) {
+      units.push({ char: c, index: i });
+      continue;
+    }
+    if (/[\p{L}\p{N}]/u.test(c)) {
+      units.push({ char: c.toLowerCase(), index: i });
+      continue;
+    }
+    if (/[’']/.test(c)) continue;
+    if (
+      units.length &&
+      units.at(-1)?.char !== " " &&
+      (chars.slice(i + 1).some((x) => /[\p{L}\p{N}]/u.test(x)) ||
+        (trailingSpace && /\s/.test(c)))
+    )
+      units.push({ char: " ", index: i });
+  }
+  return { chars, units };
+}
+export function inputCharacters(
+  target: string,
+  actual: string,
+  strict: boolean,
+) {
+  const expected = characterUnits(target, strict).units;
+  const typed = characterUnits(actual, strict, true);
+  const positions = new Map(typed.units.map((u, i) => [u.index, i]));
+  return typed.chars.map((char, i) => {
+    const pos = positions.get(i);
+    return {
+      char,
+      status:
+        pos === undefined
+          ? "typed"
+          : expected[pos]?.char === typed.units[pos].char
+            ? "typed"
+            : "mistyped",
+    };
+  });
+}
 export function copyCharacters(
   target: string,
   actual: string,
   strict: boolean,
 ) {
-  const canonical = (c: string) =>
-    strict ? c : c.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
-  const typed = Array.from(actual).map(canonical).join("");
-  let index = 0;
-  return Array.from(target).map((char) => {
-    const c = canonical(char);
-    if (!c) return { char, status: "" };
-    const pos = index;
-    index += c.length;
+  const wanted = characterUnits(target, strict),
+    typed = characterUnits(actual, strict, true).units;
+  const positions = new Map(wanted.units.map((u, i) => [u.index, i]));
+  return wanted.chars.map((char, i) => {
+    const pos = positions.get(i);
+    if (pos === undefined)
+      return { char, status: matches(target, actual, strict) ? "typed" : "" };
     return {
       char,
       status:
         pos < typed.length
-          ? typed.slice(pos, pos + c.length) === c
+          ? typed[pos].char === wanted.units[pos].char
             ? "typed"
             : "mistyped"
           : pos === typed.length
@@ -333,7 +395,13 @@ export function initialState(): State {
       },
     ],
     reviews: {},
-    settings: { strict: false, sound: true, rate: 0.85, soundVersion: 1 },
+    settings: {
+      strict: false,
+      sound: true,
+      rate: 0.85,
+      soundVersion: 1,
+      practiceMode: "typing",
+    },
     session: null,
     history: [],
   };
@@ -442,6 +510,8 @@ export function validateState(value: unknown): State {
   if (
     !bool(st.strict) ||
     !bool(st.sound) ||
+    (st.practiceMode !== undefined &&
+      !["typing", "dictation"].includes(String(st.practiceMode))) ||
     typeof st.rate !== "number" ||
     st.rate < 0.5 ||
     st.rate > 1.5
@@ -467,6 +537,8 @@ export function validateState(value: unknown): State {
     const s = value.session;
     if (
       !obj(s) ||
+      (s.mode !== undefined &&
+        !["typing", "dictation"].includes(String(s.mode))) ||
       !str(s.id, 100) ||
       !str(s.name, 80) ||
       !Array.isArray(s.tasks) ||
@@ -551,6 +623,9 @@ export function validateState(value: unknown): State {
       sound: v.settings.soundVersion === 1 ? v.settings.sound : true,
       soundVersion: 1,
       rate: v.settings.rate,
+      ...(v.settings.practiceMode
+        ? { practiceMode: v.settings.practiceMode }
+        : {}),
     },
     session: v.session,
     history: v.history.map((h) => ({

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { initialState, makeSession } from "../src/engine";
 async function submit(page: Page, text: string) {
   await page.locator("#typing-input").fill(text);
   await expect(page.locator(".success-feedback")).toBeVisible();
@@ -41,6 +42,30 @@ test("complete group, correction, hints, retry, review and portable records", as
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
   await importOwn(page);
+  // Existing three-stage records remain resumable; new sessions use the two new modes.
+  const legacy = initialState();
+  const deck = {
+    id: "legacy",
+    name: "日常表达",
+    sentences: [
+      { id: "legacy-1", en: "Practice makes progress.", zh: "练习带来进步。" },
+      {
+        id: "legacy-2",
+        en: "Every day is a new chance.",
+        zh: "每一天都是新的机会。",
+      },
+    ],
+  };
+  legacy.decks = [deck];
+  legacy.session = makeSession(deck.name, deck.sentences, false);
+  await page
+    .locator("input[type=file]")
+    .setInputFiles({
+      name: "legacy.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(legacy)),
+    });
+  await page.getByRole("button", { name: "确认替换并恢复" }).click();
   await page.locator("#typing-input").fill("Practice makes");
   await page.locator("#typing-input").press("Enter");
   await expect(page.locator(".diff.missing")).toHaveText("漏：progress");
@@ -156,7 +181,7 @@ test("strict mode and unavailable speech have usable fallbacks", async ({
   await page.getByLabel("严格核对").check();
   await page.getByRole("button", { name: "关闭弹窗" }).click();
   await page.getByRole("button", { name: "换一组句子" }).click();
-  await page.getByLabel("直接挑战默写").check();
+  await page.getByLabel("听写模式").check();
   await page.getByRole("button", { name: "开始这一组" }).click();
   await page
     .locator("#typing-input")

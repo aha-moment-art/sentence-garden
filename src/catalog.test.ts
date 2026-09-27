@@ -115,7 +115,8 @@ describe("catalog practice and audio integrity", () => {
     expect(first.reviews).toEqual(before.reviews);
     expect(first.settings).toEqual(before.settings);
     expect(first.decks.at(-1)?.sentences).toHaveLength(5);
-    expect(first.session?.tasks).toHaveLength(15);
+    expect(first.session?.tasks).toHaveLength(5);
+    expect(first.session?.mode).toBe('typing');
     const repeated = startCatalog(first, c.id, c.name, c.sentences, true);
     expect(repeated.decks).toHaveLength(2);
     expect(repeated.session?.tasks.every((t) => t.phase === "recall")).toBe(

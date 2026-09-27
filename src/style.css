@@ -1,4 +1,164 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap");
+.practice-mode-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.practice-mode-switch {
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  background: #e8efec;
+  border-radius: 14px;
+}
+.practice-mode-switch button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 23px;
+  border-radius: 10px;
+  background: transparent;
+  color: #70857d;
+  font-weight: 600;
+}
+.practice-mode-switch button[aria-pressed="true"] {
+  background: white;
+  color: var(--green);
+  box-shadow: 0 2px 8px #244a3710;
+}
+.practice-mode-bar > span {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.typing-surface {
+  position: relative;
+  min-height: 120px;
+  padding: 18px 0 24px;
+  cursor: text;
+}
+.typing-surface .inline-sentence {
+  font-family:
+    "DM Sans",
+    -apple-system,
+    sans-serif;
+  font-size: clamp(2rem, 3.7vw, 3rem);
+  line-height: 1.65;
+  font-weight: 500;
+  letter-spacing: 0.015em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #8b9892;
+  min-height: 1.65em;
+}
+.typing-surface .letter.typed {
+  color: #087d70;
+}
+.typing-surface .letter.mistyped,
+.typing-surface .extra-input {
+  color: #c54846;
+  background: #fff0ed;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 8px;
+  border: 0;
+}
+.typing-surface .letter.cursor {
+  color: #273f37;
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid #087d70;
+  padding-bottom: 5px;
+}
+.typing-surface .inline-caret {
+  display: inline-block;
+  width: 3px;
+  height: 0.95em;
+  background: var(--green);
+  vertical-align: -0.06em;
+  margin-right: 3px;
+}
+.typing-surface .surface-placeholder {
+  font-size: 1.6rem;
+  color: #abb5af;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.typing-surface textarea.inline-input {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  resize: none;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  padding: 18px 0 24px;
+  margin: 0;
+  opacity: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font: inherit;
+  font-size: 3rem;
+  cursor: text;
+}
+.surface-focus-hint {
+  position: absolute;
+  bottom: 0;
+  color: #71857b;
+  font-size: 0.72rem;
+  opacity: 1;
+  pointer-events: none;
+}
+.typing-surface:focus-within .surface-focus-hint,
+.typing-surface.complete .surface-focus-hint {
+  opacity: 0;
+}
+.dictation-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 10px 0;
+  color: var(--green);
+}
+.dictation-prompt h2 {
+  font-size: 1.6rem;
+  color: #294439;
+}
+.dictation-prompt p {
+  font-size: 0.8rem;
+  color: #81928a;
+}
+@media (max-width: 600px) {
+  .practice-mode-switch {
+    width: 100%;
+  }
+  .practice-mode-switch button {
+    flex: 1;
+    justify-content: center;
+  }
+  .typing-surface .inline-sentence {
+    font-size: 2rem;
+    line-height: 1.6;
+  }
+  .typing-surface .surface-placeholder {
+    font-size: 1.2rem;
+  }
+  .typing-surface {
+    min-height: 120px;
+  }
+  .dictation-prompt h2 {
+    font-size: 1.35rem;
+  }
+}
 .page-actions {
   display: flex;
   gap: 10px;

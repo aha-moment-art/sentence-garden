@@ -30,9 +30,11 @@ const descriptions: Record<string, string> = {
 export default function CatalogLibrary({
   back,
   start,
+  initialMode,
 }: {
   back: () => void;
   start: (id: string, name: string, items: Sentence[], direct: boolean) => void;
+  initialMode: "typing" | "dictation";
 }) {
   const [index, setIndex] = useState<CatalogIndex | null>(null),
     [collection, setCollection] = useState<CatalogCollection | null>(null),
@@ -42,7 +44,7 @@ export default function CatalogLibrary({
     [query, setQuery] = useState(""),
     [page, setPage] = useState(0),
     [group, setGroup] = useState(1),
-    [direct, setDirect] = useState(false),
+    [direct, setDirect] = useState(initialMode === "dictation"),
     [error, setError] = useState(""),
     [retry, setRetry] = useState(0),
     [listening, setListening] = useState("");
@@ -282,7 +284,7 @@ export default function CatalogLibrary({
                         checked={direct}
                         onChange={(e) => setDirect(e.target.checked)}
                       />
-                      直接默写
+                      听写模式
                     </label>
                     <button
                       className="button primary"

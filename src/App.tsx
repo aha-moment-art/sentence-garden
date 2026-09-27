@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import {
   checkSession,
-  copyCharacters,
+  inputCharacters,
   diffWords,
   expected,
   finishState,
@@ -44,6 +44,7 @@ import {
   type Sentence,
   type Session,
   type State,
+  type PracticeMode,
 } from "./engine";
 import {
   readState,
@@ -62,6 +63,7 @@ import {
 import CatalogLibrary from "./CatalogLibrary";
 import { startCatalog } from "./catalog";
 import { KeyboardSound } from "./keyboard-sound";
+import TypingSurface from "./TypingSurface";
 
 const phaseInfo: Record<
   Phase,
@@ -282,18 +284,20 @@ function ChooseSession({
   start,
   close,
   browse,
+  initialMode,
 }: {
   decks: Deck[];
   initialDeckId: string;
   start: (deck: Deck, start: number, direct: boolean) => void;
   close: () => void;
   browse: () => void;
+  initialMode: PracticeMode;
 }) {
   const [deckId, setDeckId] = useState(
       decks.find((d) => d.id === initialDeckId)?.id ?? decks[0]?.id ?? "",
     ),
     [part, setPart] = useState(0),
-    [direct, setDirect] = useState(false);
+    [direct, setDirect] = useState(initialMode === "dictation");
   const deck = decks.find((d) => d.id === deckId);
   return (
     <Modal title="选一组，慢慢记住" close={close}>
@@ -339,7 +343,7 @@ function ChooseSession({
           onChange={(e) => setDirect(e.target.checked)}
         />
         <span>
-          直接挑战默写<small>已经熟悉的句子，可以跳过跟打和填空。</small>
+          听写模式<small>隐藏原句，听音频输入；关闭则看原句打字。</small>
         </span>
       </label>
       <p className="muted">
@@ -389,7 +393,8 @@ export default function App() {
     nextRef = useRef<HTMLButtonElement>(null),
     fileRef = useRef<HTMLInputElement>(null),
     keyboardRef = useRef<KeyboardSound | null>(null),
-    composingRef = useRef(false),
+    playRef = useRef<() => void>(() => {}),
+    autoPlayed = useRef(""),
     narrationRef = useRef<HTMLAudioElement | null>(null),
     saveId = useRef(0);
   const speechSupported =
@@ -413,6 +418,8 @@ export default function App() {
               s.decks[0].name,
               s.decks[0].sentences.slice(0, 5),
               s.settings.strict,
+              false,
+              s.settings.practiceMode ?? "typing",
             );
           setState(s);
           setAudioClips(clips);
@@ -474,6 +481,39 @@ export default function App() {
   const currentAudio = task
     ? audioSource(task.sentence.en, audioClips, task.sentence)
     : null;
+  useEffect(() => {
+    if (
+      session?.mode !== "dictation" ||
+      !task ||
+      page !== "practice" ||
+      modal ||
+      incoming ||
+      confirm ||
+      editing ||
+      audioPack ||
+      (!currentAudio && !voices.length)
+    )
+      return;
+    const key = `${session.id}:${session.index}`;
+    if (autoPlayed.current === key) return;
+    const timer = setTimeout(() => {
+      autoPlayed.current = key;
+      playRef.current();
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [
+    session?.id,
+    session?.index,
+    session?.mode,
+    page,
+    modal,
+    incoming,
+    confirm,
+    editing,
+    audioPack,
+    currentAudio,
+    voices.length,
+  ]);
   useEffect(() => {
     if (
       !session?.checked ||
@@ -587,16 +627,44 @@ export default function App() {
   const setSession = (s: Session) =>
     setState((prev) => (prev ? finishState(prev, s) : prev));
   const start = (deck: Deck, offset: number, direct: boolean) => {
-    setSession(
-      makeSession(
-        deck.name,
-        deck.sentences.slice(offset, offset + 5),
-        state.settings.strict,
-        direct,
-      ),
+    const mode: PracticeMode = direct ? "dictation" : "typing";
+    setState((previous) =>
+      previous
+        ? {
+            ...previous,
+            settings: { ...previous.settings, practiceMode: mode },
+            session: makeSession(
+              deck.name,
+              deck.sentences.slice(offset, offset + 5),
+              state.settings.strict,
+              direct,
+              mode,
+            ),
+          }
+        : previous,
     );
     setPage("practice");
     setModal(null);
+  };
+  const changeMode = (mode: PracticeMode) => {
+    if (session?.mode === mode) return;
+    setState((previous) =>
+      previous
+        ? {
+            ...previous,
+            settings: { ...previous.settings, practiceMode: mode },
+            session: sessionUnique.length
+              ? makeSession(
+                  session?.name ?? "句子练习",
+                  sessionUnique,
+                  state.settings.strict,
+                  false,
+                  mode,
+                )
+              : previous.session,
+          }
+        : previous,
+    );
   };
   const beginCatalog = (
     id: string,
@@ -654,8 +722,10 @@ export default function App() {
   const updateInput = (value: string, composing = false) => {
     if (!session || !task) return;
     const hasError =
-      task.phase === "copy" &&
-      copyCharacters(task.sentence.en, value, session.strict).some(
+      !composing &&
+      (task.phase === "copy" || session.mode === "dictation") &&
+      !matches(expected(task), value, session.strict) &&
+      inputCharacters(expected(task), value, session.strict).some(
         (c) => c.status === "mistyped",
       );
     setSession({
@@ -689,13 +759,17 @@ export default function App() {
       );
     setSession(n);
   };
-  const play = () => {
+  const play = (restart = false) => {
     if (!task || !session) return;
-    if (speaking) {
+    if (speaking && !restart) {
       if (speechSupported) window.speechSynthesis.cancel();
       narrationRef.current?.pause();
       setSpeaking(false);
       return;
+    }
+    if (restart) {
+      narrationRef.current?.pause();
+      if (speechSupported) window.speechSynthesis.cancel();
     }
     if (currentAudio) {
       const audio = new Audio(currentAudio);
@@ -707,7 +781,7 @@ export default function App() {
         setNotice("音频暂时无法播放，请重新导入音频包或检查网络。");
       };
       setSpeaking(true);
-      if (task.phase === "recall")
+      if (task.phase === "recall" && session.mode !== "dictation")
         setSession({ ...session, currentHelp: true });
       void audio.play().catch(() => {
         setSpeaking(false);
@@ -729,10 +803,27 @@ export default function App() {
       setSpeaking(false);
       setNotice("这次朗读未能播放，请检查设备语音设置。");
     };
-    if (task.phase === "recall") setSession({ ...session, currentHelp: true });
+    if (task.phase === "recall" && session.mode !== "dictation")
+      setSession({ ...session, currentHelp: true });
     setSpeaking(true);
     window.speechSynthesis.speak(u);
   };
+  playRef.current = () => play(true);
+  const surface = (reveal: boolean) =>
+    task && session ? (
+      <TypingSurface
+        target={expected(task)}
+        value={session.input}
+        strict={session.strict}
+        reveal={reveal}
+        checked={session.checked}
+        inputRef={inputRef}
+        onInput={updateInput}
+        onCheck={check}
+        onSound={tick}
+        onReplay={() => play(true)}
+      />
+    ) : null;
   const exportData = () => {
     const blob = new Blob(
       [
@@ -930,6 +1021,33 @@ export default function App() {
         {page === "practice" && (
           <div className="practice-layout">
             <section className="practice-column">
+              <div className="practice-mode-bar">
+                <div
+                  role="group"
+                  aria-label="练习方式"
+                  className="practice-mode-switch"
+                >
+                  <button
+                    aria-pressed={session?.mode === "typing"}
+                    onClick={() => changeMode("typing")}
+                  >
+                    <Keyboard size={18} />
+                    打字
+                  </button>
+                  <button
+                    aria-pressed={session?.mode === "dictation"}
+                    onClick={() => changeMode("dictation")}
+                  >
+                    <Headphones size={18} />
+                    听写
+                  </button>
+                </div>
+                <span>
+                  {session?.mode
+                    ? "切换方式会重新开始本组"
+                    : "可继续旧版背诵进度，或选择新的练习方式"}
+                </span>
+              </div>
               {session?.complete ? (
                 <section className="practice-card result-card">
                   <span className="completion-mark">
@@ -948,7 +1066,13 @@ export default function App() {
                         }
                         <small>/{sessionUnique.length}</small>
                       </strong>
-                      <span>首次独立默写</span>
+                      <span>
+                        {session.mode === "typing"
+                          ? "首次正确输入"
+                          : session.mode === "dictation"
+                            ? "独立听写通过"
+                            : "首次独立默写"}
+                      </span>
                     </div>
                     <div>
                       <strong>
@@ -1029,7 +1153,13 @@ export default function App() {
                   <div className="card-top">
                     <div className="pill">
                       <span className="tiny-dot" />
-                      {task.retry ? "错句再试" : phase.name}
+                      {task.retry
+                        ? "错句再试"
+                        : session.mode === "typing"
+                          ? "看句打字"
+                          : session.mode === "dictation"
+                            ? "听音写句"
+                            : phase.name}
                     </div>
                     <span className="sentence-count">
                       句子{" "}
@@ -1043,31 +1173,34 @@ export default function App() {
                   </div>
                   <div className="sentence-zone">
                     <div className="sentence-label">
-                      {task.phase === "copy"
-                        ? "READ & TYPE"
-                        : task.phase === "cloze"
-                          ? "FILL THE GAPS"
-                          : "MAKE IT YOURS"}
+                      {session.mode === "dictation"
+                        ? "LISTEN & TYPE"
+                        : task.phase === "copy"
+                          ? "READ & TYPE"
+                          : task.phase === "cloze"
+                            ? "FILL THE GAPS"
+                            : "MAKE IT YOURS"}
                       <span>
-                        {task.retry ? "再回忆一次，就很好。" : phase.desc}
+                        {session.mode === "dictation"
+                          ? "听清声音，写下句子。"
+                          : task.retry
+                            ? "再练一次，就很好。"
+                            : phase.desc}
                       </span>
                     </div>
-                    {task.phase === "copy" ? (
-                      <p
-                        className="target-sentence"
-                        lang="en"
-                        aria-label={`原句：${task.sentence.en}`}
-                      >
-                        {copyCharacters(
-                          task.sentence.en,
-                          session.input,
-                          session.strict,
-                        ).map((c, i) => (
-                          <span className={c.status} key={i}>
-                            {c.char}
-                          </span>
-                        ))}
-                      </p>
+                    {session.mode === "dictation" ? (
+                      <div className="dictation-prompt">
+                        <Headphones size={30} />
+                        <h2>听一句，敲一句。</h2>
+                        <p>原句已隐藏 · 可重播音频 · Alt + R 重播</p>
+                        {!currentAudio && !voices.length && (
+                          <p role="status">
+                            这句暂无可用音频。可导入音频包，或切换到打字。
+                          </p>
+                        )}
+                      </div>
+                    ) : task.phase === "copy" ? (
+                      surface(true)
                     ) : task.phase === "cloze" ? (
                       <p className="target-sentence cloze-sentence" lang="en">
                         {(() => {
@@ -1136,56 +1269,19 @@ export default function App() {
                   <div className="typing-zone">
                     <div className="input-heading">
                       <label htmlFor="typing-input">
-                        {task.phase === "cloze"
-                          ? "按顺序输入缺失的单词，用空格分隔"
-                          : "在这里写下你的句子"}
+                        {task.phase === "copy"
+                          ? "正确变绿 · 错误标红 · 下划线提示下一字"
+                          : task.phase === "cloze"
+                            ? "按顺序输入缺失的单词，用空格分隔"
+                            : session.mode === "dictation"
+                              ? "听清楚后，直接输入句子"
+                              : "根据提示，输入整句"}
                       </label>
                       <span>
                         {session.strict ? "严格核对" : "忽略大小写与标点"}
                       </span>
                     </div>
-                    <textarea
-                      id="typing-input"
-                      ref={inputRef}
-                      className={
-                        session.checked === false
-                          ? "typing-input has-error"
-                          : session.checked
-                            ? "typing-input is-correct"
-                            : "typing-input"
-                      }
-                      lang="en"
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      maxLength={1200}
-                      value={session.input}
-                      disabled={session.checked === true}
-                      placeholder={
-                        task.phase === "cloze"
-                          ? "Type the missing words…"
-                          : "Start typing here…"
-                      }
-                      onChange={(e) => {
-                        tick();
-                        updateInput(e.target.value, composingRef.current);
-                      }}
-                      onCompositionStart={() => {
-                        composingRef.current = true;
-                      }}
-                      onCompositionEnd={(e) => {
-                        composingRef.current = false;
-                        updateInput(e.currentTarget.value);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.nativeEvent.isComposing) return;
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          tick();
-                          check();
-                        }
-                      }}
-                    />
+                    {task.phase !== "copy" && surface(false)}
                     {session.hint > 0 && (
                       <div className="hint-box">
                         <Lightbulb size={17} />
@@ -1256,7 +1352,9 @@ export default function App() {
                             {session.currentHelp || session.currentError
                               ? "修正完成，很好。稍后再回忆一次。"
                               : task.phase === "recall"
-                                ? "独立想起来了，本轮通过！"
+                                ? session.mode === "dictation"
+                                  ? "听写正确！正在进入下一句…"
+                                  : "独立想起来了，本轮通过！"
                                 : "正确！正在进入下一句…"}
                           </span>
                         </div>
@@ -1266,7 +1364,7 @@ export default function App() {
                       <div className="assist-actions">
                         <button
                           className="button quiet"
-                          onClick={play}
+                          onClick={() => play()}
                           disabled={
                             !currentAudio &&
                             (!speechSupported || !voices.length)
@@ -1394,7 +1492,12 @@ export default function App() {
                   />
                 </div>
                 <div className="stage-list">
-                  {(["copy", "cloze", "recall"] as Phase[]).map((p, i) => {
+                  {(session?.mode
+                    ? ([
+                        session.mode === "typing" ? "copy" : "recall",
+                      ] as Phase[])
+                    : (["copy", "cloze", "recall"] as Phase[])
+                  ).map((p, i) => {
                     const Icon = phaseInfo[p].icon;
                     const active = task?.phase === p;
                     const done =
@@ -1419,13 +1522,23 @@ export default function App() {
                           {done ? <Check size={17} /> : <Icon size={17} />}
                         </span>
                         <div>
-                          <strong>{phaseInfo[p].name}</strong>
+                          <strong>
+                            {session?.mode === "typing"
+                              ? "看句打字"
+                              : session?.mode === "dictation"
+                                ? "听音写句"
+                                : phaseInfo[p].name}
+                          </strong>
                           <small>
-                            {i === 0
-                              ? "熟悉表达"
-                              : i === 1
-                                ? "找回关键词"
-                                : "试着独立回忆"}
+                            {session?.mode === "typing"
+                              ? "逐字跟打，答对自动继续"
+                              : session?.mode === "dictation"
+                                ? "隐藏原文，听音频输入"
+                                : i === 0
+                                  ? "熟悉表达"
+                                  : i === 1
+                                    ? "找回关键词"
+                                    : "试着独立回忆"}
                           </small>
                         </div>
                         {active && (
@@ -1473,6 +1586,7 @@ export default function App() {
         )}
         {page === "library" && showCatalog && (
           <CatalogLibrary
+            initialMode={state.settings.practiceMode ?? "typing"}
             back={() => setShowCatalog(false)}
             start={beginCatalog}
           />
@@ -1744,6 +1858,7 @@ export default function App() {
         <ChooseSession
           decks={state.decks}
           initialDeckId={selectedDeck}
+          initialMode={state.settings.practiceMode ?? "typing"}
           start={start}
           browse={browseCatalog}
           close={() => setModal(null)}

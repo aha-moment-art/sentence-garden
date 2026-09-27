@@ -83,9 +83,19 @@ export function startCatalog(
   const deck = { id: deckId, name, sentences: merged };
   return {
     ...state,
+    settings: {
+      ...state.settings,
+      practiceMode: direct ? "dictation" : "typing",
+    },
     decks: old
       ? state.decks.map((d) => (d.id === deckId ? deck : d))
       : [...state.decks, deck],
-    session: makeSession(name, selected, state.settings.strict, direct),
+    session: makeSession(
+      name,
+      selected,
+      state.settings.strict,
+      direct,
+      direct ? "dictation" : "typing",
+    ),
   };
 }
