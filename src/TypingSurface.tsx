@@ -1,5 +1,5 @@
 import { useRef, type RefObject } from "react";
-import { copyCharacters, inputCharacters, matches } from "./engine";
+import { copyCharacters, inputCharacters, matches, normalized } from "./engine";
 export default function TypingSurface({
   target,
   value,
@@ -27,6 +27,9 @@ export default function TypingSurface({
   const characters = reveal
     ? copyCharacters(target, value, strict)
     : inputCharacters(target, value, strict);
+  const overflow = (strict ? value : normalized(value)).slice(
+    (strict ? target : normalized(target)).length,
+  );
   return (
     <div className={"typing-surface" + (checked ? " complete" : "")}>
       <p
@@ -47,13 +50,9 @@ export default function TypingSurface({
         {!reveal && !value && (
           <span className="surface-placeholder">直接开始输入…</span>
         )}
-        {reveal &&
-          value.length > target.length &&
-          !matches(target, value, strict) && (
-            <span className="mistyped extra-input">
-              {value.slice(target.length)}
-            </span>
-          )}
+        {reveal && overflow.length > 0 && !matches(target, value, strict) && (
+          <span className="mistyped extra-input">{overflow}</span>
+        )}
       </p>
       <textarea
         id="typing-input"
@@ -80,7 +79,7 @@ export default function TypingSurface({
         }}
         onKeyDown={(e) => {
           if (e.nativeEvent.isComposing) return;
-          if (e.altKey && (e.code === 'KeyR' || e.key.toLowerCase() === "r")) {
+          if (e.altKey && (e.code === "KeyR" || e.key.toLowerCase() === "r")) {
             e.preventDefault();
             onReplay();
           } else if (e.key === "Enter" && !e.shiftKey) {

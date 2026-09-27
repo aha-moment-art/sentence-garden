@@ -30,6 +30,8 @@ test("large inline typing colors each key, shows next letter, supports correctio
       getComputedStyle(e.querySelector(".cursor")!).color,
     ]);
   expect(colors[0]).not.toBe(colors[1]);
+  await input.fill("Small" + " ".repeat(40) + "steps");
+  await expect(page.locator(".target-sentence .mistyped")).toHaveCount(0);
   await input.fill("Small steps lead to meaningful progress.");
   await expect(page.locator(".target-sentence")).toHaveText(
     "I am learning to express my ideas clearly.",
@@ -82,8 +84,12 @@ test("dictation hides the original, autoplays and replays real audio without hin
     .poll(() => page.evaluate(() => (window as any).__audios.length))
     .toBe(2);
   // macOS Option+R may report the registered-trademark character as its key.
-  await page.locator('#typing-input').dispatchEvent('keydown',{key:'®',code:'KeyR',altKey:true});
-  await expect.poll(()=>page.evaluate(()=>(window as any).__audios.length)).toBe(3);
+  await page
+    .locator("#typing-input")
+    .dispatchEvent("keydown", { key: "®", code: "KeyR", altKey: true });
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__audios.length))
+    .toBe(3);
   const answers = [
     "Small steps lead to meaningful progress.",
     "I am learning to express my ideas clearly.",
@@ -125,13 +131,11 @@ test("dictation hides the original, autoplays and replays real audio without hin
   const context = await browser.newContext(),
     restored = await context.newPage();
   await restored.goto(new URL("./", page.url()).toString());
-  await restored
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "records.json",
-      mimeType: "application/json",
-      buffer,
-    });
+  await restored.locator("input[type=file]").setInputFiles({
+    name: "records.json",
+    mimeType: "application/json",
+    buffer,
+  });
   await restored.getByRole("button", { name: "确认替换并恢复" }).click();
   await expect(
     restored.getByRole("button", { name: "听写", exact: true }),
