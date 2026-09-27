@@ -81,6 +81,9 @@ test("dictation hides the original, autoplays and replays real audio without hin
   await expect
     .poll(() => page.evaluate(() => (window as any).__audios.length))
     .toBe(2);
+  // macOS Option+R may report the registered-trademark character as its key.
+  await page.locator('#typing-input').dispatchEvent('keydown',{key:'®',code:'KeyR',altKey:true});
+  await expect.poll(()=>page.evaluate(()=>(window as any).__audios.length)).toBe(3);
   const answers = [
     "Small steps lead to meaningful progress.",
     "I am learning to express my ideas clearly.",

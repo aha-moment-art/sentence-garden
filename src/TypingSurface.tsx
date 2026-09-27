@@ -80,7 +80,7 @@ export default function TypingSurface({
         }}
         onKeyDown={(e) => {
           if (e.nativeEvent.isComposing) return;
-          if (e.altKey && e.key.toLowerCase() === "r") {
+          if (e.altKey && (e.code === 'KeyR' || e.key.toLowerCase() === "r")) {
             e.preventDefault();
             onReplay();
           } else if (e.key === "Enter" && !e.shiftKey) {
