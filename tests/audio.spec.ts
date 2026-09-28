@@ -9,6 +9,7 @@ test("real ElevenLabs MP3 decodes, audio pack persists, and export retains it", 
       constructor(src?: string) {
         super(src);
         this.muted = true;
+        this.loop = true;
         (window as any).__lastAudio = this;
       }
     };
@@ -16,7 +17,7 @@ test("real ElevenLabs MP3 decodes, audio pack persists, and export retains it", 
   const response = page.waitForResponse((r) =>
     r.url().includes("/audio/sample-1.mp3"),
   );
-  await page.goto("/");
+  await page.goto("./", {waitUntil:'domcontentloaded'});
   await expect(page.locator("#typing-input")).toBeVisible();
   expect((await response).ok()).toBe(true);
   await expect

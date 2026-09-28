@@ -13,7 +13,7 @@ test("typing plays each sentence once automatically and stops the previous recor
       }
     };
   });
-  await page.goto("./");
+  await page.goto("./", {waitUntil:'domcontentloaded'});
   await expect
     .poll(() =>
       page.evaluate(
@@ -75,7 +75,7 @@ test("blocked first autoplay resumes from a real typing gesture", async ({
       }
     };
   });
-  await page.goto("./");
+  await page.goto("./", {waitUntil:'domcontentloaded'});
   await expect(page.getByRole("status")).toContainText("点击句子或开始打字");
   await page.locator("#typing-input").pressSequentially("S");
   await expect

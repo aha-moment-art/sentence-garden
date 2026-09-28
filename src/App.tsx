@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   BookOpen,
@@ -591,6 +591,15 @@ export default function App() {
     window.addEventListener("beforeunload", f);
     return () => window.removeEventListener("beforeunload", f);
   }, [saved, storageError, audioBusy]);
+  const libraryStats = useMemo(() => {
+    const allSentences = state?.decks.flatMap(d=>d.sentences) ?? [];
+    const reviews = state?.reviews ?? {};
+    return {
+      allSentences,
+      due: allSentences.filter(s=>reviews[s.id] && Date.parse(reviews[s.id].due)<=clock),
+      scheduled: allSentences.filter(s=>reviews[s.id]).sort((a,b)=>Date.parse(reviews[a.id].due)-Date.parse(reviews[b.id].due)),
+    };
+  }, [state?.decks, state?.reviews, clock]);
   if (!state)
     return (
       <div className="loading">
@@ -604,18 +613,8 @@ export default function App() {
         )}
       </div>
     );
-  const allSentences = state.decks.flatMap((d) => d.sentences),
-    total = allSentences.length;
-  const due = allSentences.filter(
-    (s) => state.reviews[s.id] && Date.parse(state.reviews[s.id].due) <= clock,
-  );
-  const scheduled = allSentences
-    .filter((s) => state.reviews[s.id])
-    .sort(
-      (a, b) =>
-        Date.parse(state.reviews[a.id].due) -
-        Date.parse(state.reviews[b.id].due),
-    );
+  const {allSentences, due, scheduled} = libraryStats;
+  const total = allSentences.length;
   const activeDeck =
     state.decks.find((d) => d.id === selectedDeck) ?? state.decks[0];
   const phase = task ? phaseInfo[task.phase] : phaseInfo.copy;

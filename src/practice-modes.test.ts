@@ -33,6 +33,11 @@ it("keeps typing and dictation as distinct whole-group sessions, including retri
   }
 });
 it("aligns the next letter across punctuation and repeated spaces while exposing missing spaces and extra letters", () => {
+  expect(copyCharacters('Hello, world!', 'Hello', false).filter(c=>c.status==='cursor').map(c=>c.char)).toEqual([' ']);
+  expect(copyCharacters('Hello, world!', 'Hello,', false)[5].status).toBe('typed');
+  expect(copyCharacters('Hello, world!', 'Hello,   ', false).filter(c=>c.status==='cursor').map(c=>c.char)).toEqual(['w']);
+  const missingSpace=copyCharacters('Hello world', 'Hellow', false).find(c=>c.status==='mistyped');
+  expect(missingSpace).toMatchObject({char:' ',actual:'w'});
   expect(
     copyCharacters("Hello, world!", "hello   w", false)
       .filter((c) => c.status === "cursor")

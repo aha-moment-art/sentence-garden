@@ -291,6 +291,12 @@ export function firstUnfinishedWord(target: string, input: string) {
 function characterUnits(text: string, strict: boolean, trailingSpace = false) {
   const chars = Array.from(text);
   const units: { char: string; index: number }[] = [];
+  const nextLetter: boolean[] = [];
+  let laterLetter = false;
+  for (let i = chars.length - 1; i >= 0; i--) {
+    nextLetter[i] = laterLetter;
+    laterLetter ||= /[\p{L}\p{N}]/u.test(chars[i]);
+  }
   for (let i = 0; i < chars.length; i++) {
     const c = chars[i];
     if (strict) {
@@ -302,10 +308,15 @@ function characterUnits(text: string, strict: boolean, trailingSpace = false) {
       continue;
     }
     if (/[’']/.test(c)) continue;
+    // Put a separator on the visible space, not on the preceding comma/dash.
+    if (/\s/.test(c) && units.at(-1)?.char === " " &&
+        !/\s/.test(chars[units.at(-1)!.index])) {
+      units.at(-1)!.index = i;
+    }
     if (
       units.length &&
       units.at(-1)?.char !== " " &&
-      (chars.slice(i + 1).some((x) => /[\p{L}\p{N}]/u.test(x)) ||
+      (nextLetter[i] ||
         (trailingSpace && /\s/.test(c)))
     )
       units.push({ char: " ", index: i });
@@ -324,6 +335,7 @@ export function inputCharacters(
     const pos = positions.get(i);
     return {
       char,
+      extra: pos !== undefined && pos >= expected.length,
       status:
         pos === undefined
           ? "typed"
@@ -339,14 +351,22 @@ export function copyCharacters(
   strict: boolean,
 ) {
   const wanted = characterUnits(target, strict),
-    typed = characterUnits(actual, strict, true).units;
+    input = characterUnits(actual, strict, true),
+    typed = input.units;
   const positions = new Map(wanted.units.map((u, i) => [u.index, i]));
+  const complete = matches(target, actual, strict);
+  let previous = -1;
   return wanted.chars.map((char, i) => {
     const pos = positions.get(i);
-    if (pos === undefined)
-      return { char, status: matches(target, actual, strict) ? "typed" : "" };
+    if (pos === undefined) {
+      const passed = previous >= 0 && typed.length > previous + 1;
+      const explicitlyTyped = actual.endsWith(char) && previous === typed.length - 1;
+      return { char, status: passed || explicitlyTyped || complete ? "typed" : "", actual: undefined };
+    }
+    previous = pos;
     return {
       char,
+      actual: pos < typed.length ? input.chars[typed[pos].index] : undefined,
       status:
         pos < typed.length
           ? typed[pos].char === wanted.units[pos].char

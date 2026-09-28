@@ -41,37 +41,56 @@
 }
 .typing-surface .inline-sentence {
   font-family:
-    "DM Sans",
-    -apple-system,
-    sans-serif;
+    "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: clamp(2rem, 3.7vw, 3rem);
-  line-height: 1.65;
+  line-height: 1.85;
   font-weight: 500;
-  letter-spacing: 0.015em;
+  letter-spacing: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: #8b9892;
+  color: #8a929b;
   min-height: 1.65em;
 }
 .typing-surface .letter.typed {
-  color: #087d70;
+  color: #137a45;
+  background-color: #ebf8ee;
+}
+.typing-surface .letter { position: relative; transition: none; border-radius: 3px; }
+.typing-surface .letter.space {
+  background-image: radial-gradient(circle, currentColor 1.5px, transparent 2px);
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: 6px 6px;
 }
 .typing-surface .letter.mistyped,
 .typing-surface .extra-input {
-  color: #c54846;
-  background: #fff0ed;
+  color: #b42332;
+  background-color: #ffd9df;
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 8px;
   border: 0;
 }
 .typing-surface .letter.cursor {
-  color: #273f37;
-  background: transparent;
+  color: #25364a;
+  background-color: #e4eef9;
   border: 0;
-  border-bottom: 3px solid #087d70;
+  border-bottom: 3px solid #1d5fa5;
   padding-bottom: 5px;
 }
+.typing-surface .letter.cursor::before {
+  content: ""; position: absolute; left: -2px; top: 0.05em;
+  width: 3px; height: 1.05em; background: #1d5fa5;
+}
+.typing-surface .letter.mistyped[data-entered]::after {
+  content: attr(data-entered); position: absolute; left: 0; right: 0;
+  top: 100%; margin-top: 7px; font: 600 13px/1 monospace; text-align: center; color: #b42332;
+}
+.typing-surface .letter.selected-letter { background-color: #c8defa; }
+.keystroke-feedback { margin-top: 20px; min-height: 1.5em; font-size: 0.8rem; line-height: 1.5; color: #687581; pointer-events: none; }
+.keystroke-feedback b { font-weight: 500; }
+.key-correct, .legend-correct { color: #137a45; }
+.key-error, .legend-error { color: #b42332; }
 .typing-surface .inline-caret {
   display: inline-block;
   width: 3px;
