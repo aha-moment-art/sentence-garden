@@ -1,8 +1,9 @@
 // Local-only conversion of the complete listening tracks. Transcripts stay outside the repository.
-import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, renameSync, copyFileSync } from 'node:fs';
 import { resolve, dirname, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { ttsModel, voiceForText } from '../src/tts-voices.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -55,19 +56,45 @@ if (process.argv.includes('--audit')) {
       if (!transcript.text?.trim()) throw Error('Empty transcript; stopped without generating.');
       writeFileSync(transcriptPath, JSON.stringify(transcript));
     }
-    // Do not truncate a track or replace it with a summary.
-    if (transcript.text.length > 10000) throw Error(`Track exceeds one-request limit: ${track.title}; split and verify before continuing.`);
+    // Preserve all text, splitting at paragraph/sentence boundaries where possible.
+    const chunks = [];
+    let rest = transcript.text;
+    while (rest.length > 9000) {
+      const prefix = rest.slice(0, 9000);
+      const boundaries = [...prefix.matchAll(/\n|[.!?]\s/g)];
+      const last = boundaries.at(-1);
+      const cut = last && last.index > 4500 ? last.index + last[0].length : prefix.lastIndexOf(' ') + 1;
+      if (cut <= 0) throw Error('Cannot safely split a track without a word boundary.');
+      chunks.push(rest.slice(0, cut)); rest = rest.slice(cut);
+    }
+    if (rest) chunks.push(rest);
+    if (chunks.join('') !== transcript.text) throw Error('Transcript segmentation changed the text.');
     const voice = voiceForText(track.url);
-    const response = await checked(await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice.id}?output_format=mp3_44100_128`, {
-      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: transcript.text, model_id: ttsModel, voice_settings: { stability: 0.65, similarity_boost: 0.75, style: 0, use_speaker_boost: true } }),
-      signal: AbortSignal.timeout(180000),
-    }));
-    const bytes = Buffer.from(await response.arrayBuffer());
-    if (!response.headers.get('content-type')?.includes('audio') || bytes.length < 1000) throw Error('Invalid audio response');
+    const parts = [];
+    for (const text of chunks) {
+      const part = resolve(cache, `${hash(`${ttsModel}:${voice.id}:${text}`)}.mp3`);
+      if (!existsSync(part) || statSync(part).size < 1000) {
+        const response = await checked(await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice.id}?output_format=mp3_44100_128`, {
+          method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, model_id: ttsModel, voice_settings: { stability: 0.65, similarity_boost: 0.75, style: 0, use_speaker_boost: true } }),
+          signal: AbortSignal.timeout(180000),
+        }));
+        const bytes = Buffer.from(await response.arrayBuffer());
+        if (!response.headers.get('content-type')?.includes('audio') || bytes.length < 1000) throw Error('Invalid audio response');
+        writeFileSync(part, bytes);
+      }
+      parts.push(part);
+    }
     const file = `audio/tracks/${hash(`${ttsModel}:${voice.id}:${transcript.text}`)}.mp3`;
-    writeFileSync(resolve(root, 'public', file), bytes);
-    manifest[track.url] = { file, voice: voice.name, voiceId: voice.id, model: ttsModel, transcriptHash: hash(transcript.text) };
+    const destination = resolve(root, 'public', file);
+    if (parts.length === 1) copyFileSync(parts[0], destination);
+    else {
+      const concat = resolve(cache, `${hash(track.url)}.concat.txt`);
+      writeFileSync(concat, parts.map(p => `file '${p.replaceAll("'", "'\\''")}'`).join('\n'));
+      execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', concat, '-c', 'copy', destination]);
+    }
+    execFileSync('ffmpeg', ['-v', 'error', '-i', destination, '-f', 'null', '-']);
+    manifest[track.url] = { file, voice: voice.name, voiceId: voice.id, model: ttsModel, transcriptHash: hash(transcript.text), chunks: chunks.length, characters: transcript.text.length };
     writeFileSync(`${manifestPath}.tmp`, JSON.stringify(manifest) + '\n');
     renameSync(`${manifestPath}.tmp`, manifestPath);
     console.log(`${i + 1}/${pending.length} complete tracks generated`);
