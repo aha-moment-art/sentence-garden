@@ -604,7 +604,7 @@ export default function App() {
     return (
       <div className="loading">
         <span className="brand-symbol">“</span>
-        <h1>句间</h1>
+        <h1>拾句</h1>
         <p>{bootError || "正在打开你的练习台…"}</p>
         {bootError && (
           <button className="button primary" onClick={() => location.reload()}>
@@ -863,7 +863,7 @@ export default function App() {
     const url = URL.createObjectURL(blob),
       a = document.createElement("a");
     a.href = url;
-    a.download = `句间记录-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `拾句记录-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   };
@@ -959,11 +959,11 @@ export default function App() {
         <button
           className="brand"
           onClick={() => setPage("practice")}
-          aria-label="句间首页"
+          aria-label="拾句首页"
         >
           <span className="brand-symbol">“</span>
           <span>
-            句间<small>SENTENCE GARDEN</small>
+            拾句<small>SENTENCE GARDEN</small>
           </span>
         </button>
         <nav aria-label="主要导航">

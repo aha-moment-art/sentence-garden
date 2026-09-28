@@ -16,7 +16,7 @@ function database() {
     };
     request.onerror = () => reject(request.error);
     request.onblocked = () =>
-      reject(Error("请关闭其他打开的句间标签页后重试。"));
+      reject(Error("请关闭其他打开的拾句标签页后重试。"));
   });
   return dbPromise;
 }

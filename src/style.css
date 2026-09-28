@@ -56,12 +56,6 @@
   background-color: #ebf8ee;
 }
 .typing-surface .letter { position: relative; transition: none; border-radius: 3px; }
-.typing-surface .letter.space {
-  background-image: radial-gradient(circle, currentColor 1.5px, transparent 2px);
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-size: 6px 6px;
-}
 .typing-surface .letter.mistyped,
 .typing-surface .extra-input {
   color: #b42332;
