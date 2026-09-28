@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterAll } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   initialState,
@@ -9,6 +9,8 @@ import {
 } from "./engine";
 import { startCatalog, type CatalogCollection } from "./catalog";
 import { audioSource } from "./audio";
+vi.stubGlobal('document', {baseURI:'https://example.test/sentence-garden/'});
+afterAll(()=>vi.unstubAllGlobals());
 const index = JSON.parse(
   readFileSync(
     new URL("../public/library/index.json", import.meta.url),
@@ -126,9 +128,10 @@ describe("catalog practice and audio integrity", () => {
       repeated,
     );
   });
-  it("uses exact original recording or imported override, never mismatched or untrusted audio", () => {
+  it("prefers generated ElevenLabs audio over originals and overrides, never mismatched or untrusted audio", () => {
     const s = c.sentences[0];
-    expect(audioSource(s.en, [], s)).toBe(s.recordings![0].url);
+    const generatedSource = audioSource(s.en, [], s);
+    expect(generatedSource).toMatch(/^https:\/\/example\.test\/sentence-garden\/audio\/generated\/[a-f0-9]+\.mp3$/);
     expect(audioSource("Changed English.", [], s)).toBeNull();
     expect(
       audioSource(
@@ -136,7 +139,7 @@ describe("catalog practice and audio integrity", () => {
         [{ text: s.en, audio: "data:audio/mpeg;base64,AAAA" }],
         s,
       ),
-    ).toBe("data:audio/mpeg;base64,AAAA");
+    ).toBe(generatedSource);
     for (const url of [
       "https://evil.example/audio.mp3",
       "javascript:alert(1)",
