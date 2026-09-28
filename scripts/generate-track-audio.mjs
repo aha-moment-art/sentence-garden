@@ -41,6 +41,7 @@ if (process.argv.includes('--audit')) {
   };
   for (const [i, track] of pending.entries()) {
     const transcriptPath = resolve(cache, `${hash(track.url)}.json`);
+    if (process.argv.includes('--cached-only') && !existsSync(transcriptPath)) continue;
     let transcript;
     if (existsSync(transcriptPath)) transcript = read(transcriptPath);
     else {
@@ -56,6 +57,8 @@ if (process.argv.includes('--audit')) {
       if (!transcript.text?.trim()) throw Error('Empty transcript; stopped without generating.');
       writeFileSync(transcriptPath, JSON.stringify(transcript));
     }
+    if ((transcript._transcriber || transcript._quality?.review_required) && !transcript._reviewed)
+      throw Error(`Local transcript needs review before paid generation: ${track.title}`);
     // Preserve all text, splitting at paragraph/sentence boundaries where possible.
     const chunks = [];
     let rest = transcript.text;
@@ -94,7 +97,7 @@ if (process.argv.includes('--audit')) {
       execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', concat, '-c', 'copy', destination]);
     }
     execFileSync('ffmpeg', ['-v', 'error', '-i', destination, '-f', 'null', '-']);
-    manifest[track.url] = { file, voice: voice.name, voiceId: voice.id, model: ttsModel, transcriptHash: hash(transcript.text), chunks: chunks.length, characters: transcript.text.length };
+    manifest[track.url] = { file, voice: voice.name, voiceId: voice.id, model: ttsModel, transcriptHash: hash(transcript.text), chunks: chunks.length, characters: transcript.text.length, transcriber: transcript._transcriber || 'scribe_v2', reviewed: transcript._reviewed === true };
     writeFileSync(`${manifestPath}.tmp`, JSON.stringify(manifest) + '\n');
     renameSync(`${manifestPath}.tmp`, manifestPath);
     console.log(`${i + 1}/${pending.length} complete tracks generated`);
