@@ -4,14 +4,12 @@ import {
   BookOpen,
   Check,
   CheckCircle2,
-  ChevronRight,
   Download,
   FilePlus2,
   Headphones,
   Keyboard,
   Leaf,
   Lightbulb,
-  MoreHorizontal,
   Pause,
   Play,
   Plus,
@@ -948,11 +946,6 @@ export default function App() {
     day: "numeric",
     weekday: "long",
   });
-  const practiced = state.history
-    .filter(
-      (h) => new Date(h.date).toDateString() === new Date().toDateString(),
-    )
-    .reduce((sum, h) => sum + h.count, 0);
   return (
     <div className="app-shell">
       <header className="header">
@@ -1060,11 +1053,9 @@ export default function App() {
                     听写
                   </button>
                 </div>
-                <span>
-                  {session?.mode
-                    ? "切换方式会重新开始本组"
-                    : "可继续旧版背诵进度，或选择新的练习方式"}
-                </span>
+                <button className="button quiet" onClick={() => setModal("choose")}>
+                  换一组句子
+                </button>
               </div>
               {session?.complete ? (
                 <section className="practice-card result-card">
@@ -1489,120 +1480,6 @@ export default function App() {
                 </span>
               </div>
             </section>
-            <aside className="practice-sidebar">
-              <div className="side-card">
-                <div className="side-heading">
-                  <span>当前练习</span>
-                  <button
-                    className="icon-button"
-                    aria-label="更换句组"
-                    onClick={() => setModal("choose")}
-                  >
-                    <MoreHorizontal size={20} />
-                  </button>
-                </div>
-                <h3>{session?.name ?? "还没有开始"}</h3>
-                <p className="muted small">
-                  {sessionUnique.length} 句 · 一小步，也算数
-                </p>
-                <div className="mini-progress">
-                  <span
-                    style={{
-                      width: `${session ? (session.complete ? 100 : (session.index / session.tasks.length) * 100) : 0}%`,
-                    }}
-                  />
-                </div>
-                <div className="stage-list">
-                  {(session?.mode
-                    ? ([
-                        session.mode === "typing" ? "copy" : "recall",
-                      ] as Phase[])
-                    : (["copy", "cloze", "recall"] as Phase[])
-                  ).map((p, i) => {
-                    const Icon = phaseInfo[p].icon;
-                    const active = task?.phase === p;
-                    const done =
-                      !!session &&
-                      (session.complete ||
-                        (["copy", "cloze", "recall"].indexOf(
-                          task?.phase ?? "copy",
-                        ) > i &&
-                          !session.tasks.every((t) => t.phase === "recall")));
-                    return (
-                      <div
-                        className={
-                          active
-                            ? "stage active"
-                            : done
-                              ? "stage done"
-                              : "stage"
-                        }
-                        key={p}
-                      >
-                        <span className="stage-icon">
-                          {done ? <Check size={17} /> : <Icon size={17} />}
-                        </span>
-                        <div>
-                          <strong>
-                            {session?.mode === "typing"
-                              ? "看句打字"
-                              : session?.mode === "dictation"
-                                ? "听音写句"
-                                : phaseInfo[p].name}
-                          </strong>
-                          <small>
-                            {session?.mode === "typing"
-                              ? "逐字跟打，答对自动继续"
-                              : session?.mode === "dictation"
-                                ? "隐藏原文，听音频输入"
-                                : i === 0
-                                  ? "熟悉表达"
-                                  : i === 1
-                                    ? "找回关键词"
-                                    : "试着独立回忆"}
-                          </small>
-                        </div>
-                        {active && (
-                          <span className="stage-current">进行中</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <button
-                  className="button secondary full"
-                  onClick={() => setModal("choose")}
-                >
-                  换一组句子 <ChevronRight size={16} />
-                </button>
-              </div>
-              <div className="side-card today-card">
-                <div className="side-heading">
-                  <span>今天的小进步</span>
-                  <Sparkles size={16} />
-                </div>
-                <div className="today-stat">
-                  <strong>{practiced}</strong>
-                  <span>句已完成练习</span>
-                </div>
-                <div className="side-divider" />
-                <button
-                  className="review-shortcut"
-                  onClick={() => setPage("review")}
-                >
-                  <span>
-                    <RotateCcw size={15} />
-                    {due.length
-                      ? `${due.length} 句等你再见一面`
-                      : "暂时没有到期复习"}
-                  </span>
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-              <p className="side-footnote">
-                <Keyboard size={15} /> 输入正确后自动继续 · Enter 核对错误
-              </p>
-            </aside>
           </div>
         )}
         {page === "library" && showCatalog && (

@@ -829,7 +829,9 @@ main {
 }
 .practice-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 265px;
+  grid-template-columns: minmax(0, 1fr);
+  width: min(100%, 1040px);
+  margin-inline: auto;
   gap: 25px;
   align-items: start;
 }
@@ -1971,7 +1973,7 @@ footer > span {
     padding: 30px 28px 0;
   }
   .practice-layout {
-    grid-template-columns: minmax(0, 1fr) 235px;
+    grid-template-columns: minmax(0, 1fr);
     gap: 18px;
   }
   .side-card {
