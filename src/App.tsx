@@ -482,6 +482,18 @@ export default function App() {
     ? audioSource(task.sentence.en, audioClips, task.sentence)
     : null;
   useEffect(() => {
+    if (page !== "practice" || !session?.complete || modal || incoming || confirm || editing || audioPack || showCatalog) return;
+    const handleReturn = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.repeat || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.defaultPrevented) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest('button, a, input, textarea, select, [contenteditable="true"], [role="button"]')) return;
+      event.preventDefault();
+      setModal("choose");
+    };
+    window.addEventListener("keydown", handleReturn);
+    return () => window.removeEventListener("keydown", handleReturn);
+  }, [page, session?.complete, modal, incoming, confirm, editing, audioPack, showCatalog]);
+  useEffect(() => {
     if (
       !session ||
       !task ||
@@ -1151,6 +1163,8 @@ export default function App() {
                     </button>
                     <button
                       className="button primary"
+                      autoFocus
+                      aria-keyshortcuts="Enter"
                       onClick={() => setModal("choose")}
                     >
                       再练一组 <ArrowRight size={18} />
