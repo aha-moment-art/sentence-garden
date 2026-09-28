@@ -4,12 +4,14 @@ import generatedTracks from "./generated-tracks.json";
 import { isProjectAudioUrl, type Sentence } from "./engine";
 export type AudioClip = { text: string; audio: string; voice?: string; model?: string };
 type GeneratedAudio = { file: string; voice: string; voiceId: string; model: string };
+declare const __AUDIO_BASE_URL__: string;
+const resolveAudio = (file: string) => new URL(file, typeof __AUDIO_BASE_URL__ === 'string' && __AUDIO_BASE_URL__ ? __AUDIO_BASE_URL__ : document.baseURI);
 const generatedClips = generated as Record<string, GeneratedAudio>;
 const generatedClip = (text: string) => Object.hasOwn(generatedClips, text) ? generatedClips[text] : undefined;
 export function trackAudio(url: string) {
   const tracks = generatedTracks as Record<string, GeneratedAudio>;
   const entry = Object.hasOwn(tracks, url) ? tracks[url] : undefined;
-  return entry ? { url: new URL(entry.file, document.baseURI).href, label: `ElevenLabs · ${entry.voice} · 英音` } : { url, label: "原项目录音" };
+  return entry ? { url: resolveAudio(entry.file).href, label: `ElevenLabs · ${entry.voice} · 英音` } : { url, label: "原项目录音" };
 }
 export type AudioPack = {
   format: "sentence-garden-audio";
@@ -63,7 +65,7 @@ export function audioSource(
 ) {
   const ready = generatedClip(text);
   if (ready) {
-    const url = new URL(ready.file, document.baseURI);
+    const url = resolveAudio(ready.file);
     // Demo filenames predate the voice change; bypass cached George recordings.
     if (ready.file.startsWith("audio/sample-")) url.searchParams.set("voice", ready.voiceId);
     return url.href;
@@ -76,7 +78,7 @@ export function audioSource(
   if (recording) return recording.url;
   const relative = (bundled as Record<string, string>)[text];
   return typeof relative === "string"
-    ? new URL(relative, document.baseURI).href
+    ? resolveAudio(relative).href
     : null;
 }
 

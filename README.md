@@ -44,6 +44,8 @@ node scripts/import-projects.mjs /absolute/path/outside-repo/source-snapshots
 
 播放现成音频不会调用生成接口。自己的新句子可通过音频包导入；没有配音时明确显示“设备朗读”，使用设备可用的英语语音。GitHub Pages 不持有 API key，也不会在你输入新句子时自动付费生成。
 
+发布时 `VITE_AUDIO_BASE_URL` 指向同一仓库当前提交的 `public/` 原始文件地址，网页不再把整套 MP3 复制进 Pages 发布包。这样保留生成音频的原始质量，并避免全量音频超过 Pages 的容量限制；音频和网页绑定同一个提交。未设置该变量的本地开发仍从 `public/audio/` 播放。
+
 公开音频清单为 `src/generated-audio.json`，包含逐句文本、文件、音色 ID 和模型。`node scripts/generate-library-audio.mjs --audit` 检查所有示例、公开例句和词汇是否已生成，包括带原配音的内容；只有 pending 为 0 才表示这部分全量完成（整段听力需另行转换核验）。去掉 `--audit` 可在本机补齐缺失音频。脚本缓存逐句结果、最多同时生成两句，遇到 API 错误停止且不自动重试。
 
 生成自己的音频包：
