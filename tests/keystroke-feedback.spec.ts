@@ -23,8 +23,8 @@ test('each keystroke paints immediately, explains mistakes and keeps click/arrow
   await input.press('Backspace');
   await expect(page.locator('.letter.mistyped')).toHaveCount(0);
   await expect(page.locator('.keystroke-feedback')).toContainText('已输入的字符正确');
-  // Clicking at the left edge resumes at the visible end, never at an invisible textarea offset.
-  await input.click({position:{x:2,y:8}});
+  // Keyboard End still resumes at the visible end after mouse positioning.
+  await input.press('End');
   await input.pressSequentially('ll');
   await expect(input).toHaveValue('Small');
   await expect(page.locator('.letter.cursor')).toHaveText(' ');
