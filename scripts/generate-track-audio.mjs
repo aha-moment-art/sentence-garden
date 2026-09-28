@@ -39,7 +39,8 @@ if (process.argv.includes('--audit')) {
     }
     return response;
   };
-  for (const [i, track] of pending.entries()) {
+  let completed = 0, awaitingReview = 0;
+  for (const track of pending) {
     const transcriptPath = resolve(cache, `${hash(track.url)}.json`);
     if (process.argv.includes('--cached-only') && !existsSync(transcriptPath)) continue;
     let transcript;
@@ -57,8 +58,10 @@ if (process.argv.includes('--audit')) {
       if (!transcript.text?.trim()) throw Error('Empty transcript; stopped without generating.');
       writeFileSync(transcriptPath, JSON.stringify(transcript));
     }
-    if ((transcript._transcriber || transcript._quality?.review_required) && !transcript._reviewed)
+    if ((transcript._transcriber || transcript._quality?.review_required) && !transcript._reviewed) {
+      if (process.argv.includes('--cached-only')) { awaitingReview++; continue; }
       throw Error(`Local transcript needs review before paid generation: ${track.title}`);
+    }
     // Preserve all text, splitting at paragraph/sentence boundaries where possible.
     const chunks = [];
     let rest = transcript.text;
@@ -100,6 +103,8 @@ if (process.argv.includes('--audit')) {
     manifest[track.url] = { file, voice: voice.name, voiceId: voice.id, model: ttsModel, transcriptHash: hash(transcript.text), chunks: chunks.length, characters: transcript.text.length, transcriber: transcript._transcriber || 'scribe_v2', reviewed: transcript._reviewed === true };
     writeFileSync(`${manifestPath}.tmp`, JSON.stringify(manifest) + '\n');
     renameSync(`${manifestPath}.tmp`, manifestPath);
-    console.log(`${i + 1}/${pending.length} complete tracks generated`);
+    completed++;
+    console.log(`${completed} complete tracks generated this run`);
   }
+  console.log(JSON.stringify({completed, awaitingReview, remaining:[...tracks.keys()].filter(url=>!valid(url)).length}));
 }
