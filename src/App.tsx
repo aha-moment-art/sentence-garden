@@ -278,93 +278,9 @@ function SentenceEditor({
     </Modal>
   );
 }
-function ChooseSession({
-  decks,
-  initialDeckId,
-  start,
-  close,
-  browse,
-  initialMode,
-}: {
-  decks: Deck[];
-  initialDeckId: string;
-  start: (deck: Deck, start: number, direct: boolean) => void;
-  close: () => void;
-  browse: () => void;
-  initialMode: PracticeMode;
-}) {
-  const [deckId, setDeckId] = useState(
-      decks.find((d) => d.id === initialDeckId)?.id ?? decks[0]?.id ?? "",
-    ),
-    [part, setPart] = useState(0),
-    [direct, setDirect] = useState(initialMode === "dictation");
-  const deck = decks.find((d) => d.id === deckId);
-  return (
-    <Modal title="选一组，慢慢记住" close={close}>
-      <label className="field">
-        句库
-        <select
-          value={deckId}
-          onChange={(e) => {
-            setDeckId(e.target.value);
-            setPart(0);
-          }}
-        >
-          {decks.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name} · {d.sentences.length} 句
-            </option>
-          ))}
-        </select>
-      </label>
-      {deck && (
-        <div className="part-grid">
-          {Array.from(
-            { length: Math.ceil(deck.sentences.length / PRACTICE_GROUP_SIZE) },
-            (_, i) => (
-              <button
-                className={part === i ? "part selected" : "part"}
-                key={i}
-                onClick={() => setPart(i)}
-              >
-                第 {i + 1} 组{" "}
-                <small>
-                  {i * PRACTICE_GROUP_SIZE + 1}–{Math.min((i + 1) * PRACTICE_GROUP_SIZE, deck.sentences.length)} 句
-                </small>
-              </button>
-            ),
-          )}
-        </div>
-      )}
-      <label className="check-row">
-        <input
-          type="checkbox"
-          checked={direct}
-          onChange={(e) => setDirect(e.target.checked)}
-        />
-        <span>
-          听写模式<small>隐藏原句，听音频输入；关闭则看原句打字。</small>
-        </span>
-      </label>
-      <p className="muted">
-        开始新组会替换当前未完成的练习，已完成的复习记录会保留。
-      </p>
-      <button
-        className="button primary full"
-        disabled={!deck?.sentences.length}
-        onClick={() => deck && start(deck, part * PRACTICE_GROUP_SIZE, direct)}
-      >
-        开始这一组 <ArrowRight size={18} />
-      </button>
-      <button className="button secondary full browse-catalog" onClick={browse}>
-        <BookOpen size={17} />
-        从四个项目的句库里选
-      </button>
-    </Modal>
-  );
-}
 export default function App() {
   const [showCatalog, setShowCatalog] = useState(false);
+  const [personalPart, setPersonalPart] = useState(0);
   const [state, setState] = useState<State | null>(null),
     [bootError, setBootError] = useState(""),
     [storageError, setStorageError] = useState(""),
@@ -372,7 +288,7 @@ export default function App() {
   const [page, setPage] = useState<"practice" | "library" | "review">(
       "practice",
     ),
-    [modal, setModal] = useState<"import" | "choose" | "settings" | null>(null),
+    [modal, setModal] = useState<"import" | "settings" | null>(null),
     [editing, setEditing] = useState<Sentence | null>(null),
     [selectedDeck, setSelectedDeck] = useState("");
   const [incoming, setIncoming] = useState<State | null>(null),
@@ -490,7 +406,8 @@ export default function App() {
       const target = event.target;
       if (target instanceof HTMLElement && target.closest('button, a, input, textarea, select, [contenteditable="true"], [role="button"]')) return;
       event.preventDefault();
-      setModal("choose");
+      setPage("library");
+      setShowCatalog(true);
     };
     window.addEventListener("keydown", handleReturn);
     return () => window.removeEventListener("keydown", handleReturn);
@@ -1091,7 +1008,7 @@ export default function App() {
                     听写
                   </button>
                 </div>
-                <button className="button quiet" onClick={() => setModal("choose")}>
+                <button className="button quiet" onClick={browseCatalog}>
                   换一组句子
                 </button>
               </div>
@@ -1191,7 +1108,7 @@ export default function App() {
                       className="button primary"
                       autoFocus
                       aria-keyshortcuts="Enter"
-                      onClick={() => setModal("choose")}
+                      onClick={browseCatalog}
                     >
                       再练一组 <ArrowRight size={18} />
                     </button>
@@ -1462,9 +1379,9 @@ export default function App() {
                   <p>导入自己的英语句子，或者从句库选一组。</p>
                   <button
                     className="button primary"
-                    onClick={() => setModal(total ? "choose" : "import")}
+                    onClick={browseCatalog}
                   >
-                    {total ? "选择句组" : "导入句子"}
+                    浏览句库
                     <ArrowRight size={18} />
                   </button>
                 </section>
@@ -1492,7 +1409,7 @@ export default function App() {
                   className={
                     activeDeck?.id === d.id ? "deck-item selected" : "deck-item"
                   }
-                  onClick={() => setSelectedDeck(d.id)}
+                  onClick={() => { setSelectedDeck(d.id); setPersonalPart(0); }}
                 >
                   <BookOpen size={17} />
                   <span>
@@ -1539,13 +1456,23 @@ export default function App() {
                   </p>
                 </div>
                 {!!activeDeck?.sentences.length && (
+                  <div>
+                    {activeDeck.sentences.length > PRACTICE_GROUP_SIZE && (
+                      <select aria-label="练习范围" value={personalPart}
+                        onChange={(e) => setPersonalPart(Number(e.target.value))}>
+                        {Array.from({length: Math.ceil(activeDeck.sentences.length / PRACTICE_GROUP_SIZE)}, (_, i) => (
+                          <option key={i} value={i}>{i * PRACTICE_GROUP_SIZE + 1}–{Math.min((i + 1) * PRACTICE_GROUP_SIZE, activeDeck.sentences.length)} 句</option>
+                        ))}
+                      </select>
+                    )}
                   <button
                     className="button primary"
-                    onClick={() => setModal("choose")}
+                    onClick={() => start(activeDeck, personalPart * PRACTICE_GROUP_SIZE, state.settings.practiceMode === "dictation")}
                   >
                     <Play size={16} />
                     开始练习
                   </button>
+                  </div>
                 )}
               </div>
               {activeDeck?.sentences.map((s, i) => (
@@ -1740,16 +1667,6 @@ export default function App() {
             setShowCatalog(false);
             setNotice(`已导入 ${d.sentences.length} 句。`);
           }}
-        />
-      )}
-      {modal === "choose" && (
-        <ChooseSession
-          decks={state.decks}
-          initialDeckId={selectedDeck}
-          initialMode={state.settings.practiceMode ?? "typing"}
-          start={start}
-          browse={browseCatalog}
-          close={() => setModal(null)}
         />
       )}
       {modal === "settings" && (

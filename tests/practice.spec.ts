@@ -26,10 +26,7 @@ async function importOwn(page: Page) {
     .locator(".library-heading")
     .getByRole("button", { name: "开始练习" })
     .click();
-  await expect(
-    page.getByRole("combobox", { name: "句库" }).locator("option:checked"),
-  ).toHaveText("日常表达 · 2 句");
-  await page.getByRole("button", { name: "开始这一组" }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator(".target-sentence")).toHaveText(
     "Practice makes progress.",
   );
@@ -177,9 +174,7 @@ test("strict mode and unavailable speech have usable fallbacks", async ({
   await page.getByRole("button", { name: "练习设置" }).click();
   await page.getByLabel("严格核对").check();
   await page.getByRole("button", { name: "关闭弹窗" }).click();
-  await page.getByRole("button", { name: "换一组句子" }).click();
-  await page.getByLabel("听写模式").check();
-  await page.getByRole("button", { name: "开始这一组" }).click();
+  await page.getByRole("button", { name: "听写", exact: true }).click();
   await page
     .locator("#typing-input")
     .fill("small steps lead to meaningful progress");

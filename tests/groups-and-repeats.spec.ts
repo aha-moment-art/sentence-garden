@@ -13,15 +13,15 @@ test('personal groups use 20,20,5 entries with correct offsets and reviews start
   state.decks=[{id:'forty-five',name:'Forty five sentences',sentences:Array.from({length:45},(_,i)=>({id:`item-${i}`,en:`Practice sentence number ${i+1}.`,zh:''}))}];
   state.session=makeSession(state.decks[0].name,state.decks[0].sentences.slice(0,20),false,false,'typing');
   await restore(page,state);
-  await page.getByRole('button',{name:'换一组句子'}).click();
-  await expect(page.getByRole('button',{name:'第 1 组 1–20 句'})).toBeVisible();
-  await page.getByRole('button',{name:'第 2 组 21–40 句'}).click();
-  await page.getByRole('button',{name:'开始这一组',exact:true}).click();
+  await page.getByRole('button',{name:'我的句库',exact:true}).click();
+  await expect(page.getByLabel('练习范围').locator('option')).toHaveText(['1–20 句','21–40 句','41–45 句']);
+  await page.getByLabel('练习范围').selectOption('1');
+  await page.locator('.library-heading').getByRole('button',{name:'开始练习',exact:true}).click();
   await expect(page.locator('.target-sentence')).toHaveText('Practice sentence number 21.');
   await expect(page.locator('.sentence-count')).toContainText('/ 20');
-  await page.getByRole('button',{name:'换一组句子'}).click();
-  await page.getByRole('button',{name:'第 3 组 41–45 句'}).click();
-  await page.getByRole('button',{name:'开始这一组',exact:true}).click();
+  await page.getByRole('button',{name:'我的句库',exact:true}).click();
+  await page.getByLabel('练习范围').selectOption('2');
+  await page.locator('.library-heading').getByRole('button',{name:'开始练习',exact:true}).click();
   await expect(page.locator('.target-sentence')).toHaveText('Practice sentence number 41.');
   await expect(page.locator('.sentence-count')).toContainText('/ 5');
   for(const s of state.decks[0].sentences) state.reviews[s.id]={step:0,due:'2020-01-01T00:00:00Z',lastPracticed:'2020-01-01T00:00:00Z',needsReview:true};
@@ -116,4 +116,12 @@ test('device speech follows the repeat setting and ignores cancelled completions
   await page.getByRole('button',{name:'停止',exact:true}).click();
   await page.evaluate(()=>(window as any).__spoken.at(-1).onend());
   expect(await page.evaluate(()=>(window as any).__spoken.length)).toBe(4);
+});
+
+test('change group opens the project library without a selection modal',async({page})=>{
+  await page.goto('./');
+  await page.getByRole('button',{name:'换一组句子'}).click();
+  await expect(page.locator('.project-card').filter({hasText:'British Ear'})).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText('选一组，慢慢记住',{exact:true})).toHaveCount(0);
 });
