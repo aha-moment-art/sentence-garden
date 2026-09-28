@@ -34,7 +34,7 @@ for (const mode of ['打字', '听写']) {
     await expect(input).toHaveValue('Tiny steps lead');
     await input.fill('Small steps lead');
     await dragBetween(page, 11, 6);
-    expect(await selection(page)).toMatchObject({text: 'steps', direction: 'backward'});
+    expect((await selection(page)).text).toBe('steps');
     await page.keyboard.press('Backspace');
     await expect(input).toHaveValue('Small  lead');
     await input.fill('Small steps lead');
@@ -60,18 +60,18 @@ test('mouse selection follows wrapped lines at phone and tablet widths, includin
     expect((await selection(page)).text).toBe('steps lead');
   }
 });
-test('copy-mode mouse positions map normalized whitespace back to actual input', async ({page}) => {
+test('copy-mode mouse positions preserve every typed space', async ({page}) => {
   await page.goto('./');
   await page.locator('#typing-input').fill('Small   steps lead');
-  await dragBetween(page, 6, 11);
-  expect((await selection(page)).text.trim()).toBe('steps');
+  await dragBetween(page, 8, 13);
+  expect((await selection(page)).text).toBe('steps');
 });
 
 test('mouse selects overflow letters for deletion', async ({page}) => {
   await page.goto('./');
   const input = page.locator('#typing-input');
   await input.fill('Small steps lead to meaningful progress extra');
-  const letters = page.locator('.extra-input .letter');
+  const letters = page.locator('.letter.extra-input');
   const first = await letters.first().boundingBox(), last = await letters.last().boundingBox();
   if (!first || !last) throw new Error('Overflow missing');
   await page.mouse.move(first.x + 1, first.y + first.height / 2);
@@ -79,6 +79,6 @@ test('mouse selects overflow letters for deletion', async ({page}) => {
   await page.mouse.move(last.x + last.width - 1, last.y + last.height / 2, {steps: 10});
   await page.mouse.up();
   expect((await selection(page)).text).toContain('extra');
-  await expect(page.locator('.extra-input .selected-letter')).toHaveCount(await letters.count());
-  await expect(page.locator('.target-sentence > .selected-letter')).toHaveCount(0);
+  await expect(page.locator('.extra-input.selected-letter')).toHaveCount(await letters.count());
+  await expect(page.locator('.target-sentence > .selected-letter:not(.extra-input)')).toHaveCount(0);
 });

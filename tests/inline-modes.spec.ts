@@ -10,7 +10,8 @@ test("large inline typing colors each key, shows next letter, supports correctio
   expect(await input.evaluate((e) => getComputedStyle(e).borderWidth)).toBe(
     "0px",
   );
-  expect(await input.evaluate((e) => getComputedStyle(e).opacity)).toBe("0");
+  expect(await input.evaluate((e) => getComputedStyle(e).opacity)).toBe("1");
+  expect(await input.evaluate((e) => getComputedStyle(e).caretColor)).not.toBe('rgba(0, 0, 0, 0)');
   expect(
     await page
       .locator(".inline-sentence")

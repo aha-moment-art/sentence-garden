@@ -39,7 +39,9 @@
   padding: 18px 0 24px;
   cursor: text;
 }
-.typing-surface .inline-sentence {
+.typing-editor { position: relative; }
+.typing-surface .inline-sentence,
+.typing-surface textarea.inline-input {
   font-family:
     "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: clamp(2rem, 3.7vw, 3rem);
@@ -47,6 +49,7 @@
   font-weight: 500;
   letter-spacing: 0;
   white-space: pre-wrap;
+  word-break: break-all;
   overflow-wrap: anywhere;
   color: #8a929b;
   min-height: 1.65em;
@@ -66,19 +69,8 @@
   border: 0;
 }
 .typing-surface .letter.cursor {
-  color: #25364a;
-  background-color: #e4eef9;
+  background-color: transparent;
   border: 0;
-  border-bottom: 3px solid #1d5fa5;
-  padding-bottom: 5px;
-}
-.typing-surface .letter.cursor::before {
-  content: ""; position: absolute; left: -2px; top: 0.05em;
-  width: 3px; height: 1.05em; background: #1d5fa5;
-}
-.typing-surface .letter.mistyped[data-entered]::after {
-  content: attr(data-entered); position: absolute; left: 0; right: 0;
-  top: 100%; margin-top: 7px; font: 600 13px/1 monospace; text-align: center; color: #b42332;
 }
 .typing-surface .letter.selected-letter { background-color: #c8defa; }
 .keystroke-feedback { margin-top: 20px; min-height: 1.5em; font-size: 0.8rem; line-height: 1.5; color: #687581; pointer-events: none; }
@@ -112,16 +104,16 @@
   border-radius: 0;
   outline: none;
   box-shadow: none;
-  padding: 18px 0 24px;
+  padding: 0;
   margin: 0;
-  opacity: 0;
+  opacity: 1;
   background: transparent;
   color: transparent;
-  caret-color: transparent;
-  font: inherit;
-  font-size: 3rem;
+  caret-color: #1d5fa5;
+  overflow: hidden;
   cursor: text;
 }
+.typing-surface textarea.inline-input::selection { background: #91bdf366; color: transparent; }
 .surface-focus-hint {
   position: absolute;
   bottom: 0;
@@ -159,7 +151,8 @@
     flex: 1;
     justify-content: center;
   }
-  .typing-surface .inline-sentence {
+  .typing-surface .inline-sentence,
+  .typing-surface textarea.inline-input {
     font-size: 2rem;
     line-height: 1.6;
   }
