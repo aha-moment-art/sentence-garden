@@ -54,7 +54,7 @@ test("four projects load on demand, paginate, preserve recordings through practi
     .locator(".catalog-row-body>p[lang=en]")
     .first()
     .innerText();
-  await page.getByRole("button", { name: "练这 5 条" }).click();
+  await page.getByRole("button", { name: "练这 6 条" }).click();
   await page.getByRole("button", { name: "确认", exact: true }).click();
   await expect(page.locator(".target-sentence")).toHaveText(sentence);
   await expect(page.locator(".assist-actions>button").first()).toBeEnabled();
@@ -73,7 +73,7 @@ test("four projects load on demand, paginate, preserve recordings through practi
   const buffer = Buffer.concat(chunks),
     data = JSON.parse(buffer.toString());
   expect(data.decks).toHaveLength(2);
-  expect(data.decks[1].sentences).toHaveLength(5);
+  expect(data.decks[1].sentences).toHaveLength(6);
   expect(data.decks[1].sentences[0].recordings[0].url).toContain("/BritSpeak/");
   const context = await browser.newContext();
   const restored = await context.newPage();

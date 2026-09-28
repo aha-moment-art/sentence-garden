@@ -21,6 +21,17 @@ describe('review calendar',()=>{
   it('failed review becomes due now, then restarts at one day',()=>{const now=new Date();const failed=scheduleReview(undefined,false,true,now);expect(failed.due).toBe(now.toISOString());expect(scheduleReview(failed,true,false,now).step).toBe(0);});
 });
 describe('portable records',()=>{
+  it('persists custom read counts, upgrades legacy records to one play and rejects invalid counts',()=>{
+    const state=initialState();
+    state.settings.readRepeats=7;
+    expect(validateState(JSON.parse(JSON.stringify(state))).settings.readRepeats).toBe(7);
+    delete state.settings.readRepeats;
+    expect(validateState(state).settings.readRepeats).toBe(1);
+    for(const count of [0,-1,1.5,101,NaN]) {
+      state.settings.readRepeats=count;
+      expect(()=>validateState(state)).toThrow('设置数据无效');
+    }
+  });
   it('enables the new keyboard sound for legacy records but preserves later mute preferences',()=>{const legacy=initialState();delete legacy.settings.soundVersion;legacy.settings.sound=false;const upgraded=validateState(legacy);expect(upgraded.settings.sound).toBe(true);upgraded.settings.sound=false;expect(validateState(JSON.parse(JSON.stringify(upgraded))).settings.sound).toBe(false);expect(upgraded.decks).toEqual(legacy.decks);});
   it('round-trips settings, content, in-progress input and dates',()=>{const s=initialState();s.session=makeSession('test',s.decks[0].sentences,false);s.session.input='Small st';expect(validateState(JSON.parse(JSON.stringify(s)))).toEqual(s);});
   it('rejects invalid versions, duplicate ids, broken positions and review dates',()=>{expect(()=>validateState({...initialState(),version:2})).toThrow();const dupe=initialState();dupe.decks[0].sentences.push(dupe.decks[0].sentences[0]);expect(()=>validateState(dupe)).toThrow();const broken=initialState();broken.session=makeSession('test',broken.decks[0].sentences,false);broken.session.index=999;expect(()=>validateState(broken)).toThrow();const date=initialState();date.reviews['sample-1']={step:0,due:'invalid',lastPracticed:new Date().toISOString(),needsReview:false};expect(()=>validateState(date)).toThrow();});

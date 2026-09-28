@@ -1,4 +1,4 @@
-import {useRef, useState, type RefObject} from 'react';
+import {useLayoutEffect, useRef, useState, type RefObject} from 'react';
 import {copyCharacters, matches} from './engine';
 import {typingView} from './typing-view';
 
@@ -18,6 +18,10 @@ export default function TypingSurface({target, value, strict, reveal, checked, i
 }) {
   const composing = useRef(false);
   const [isComposing, setComposing] = useState(false);
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (el) el.setSelectionRange(el.value.length, el.value.length);
+  }, [target, reveal, inputRef]);
   const [selection, setSelection] = useState({value, start: value.length, end: value.length, direction: 'none'});
   const start = selection.value === value ? selection.start : value.length;
   const end = selection.value === value ? selection.end : value.length;
@@ -57,7 +61,6 @@ export default function TypingSurface({target, value, strict, reveal, checked, i
           autoCapitalize="off" autoCorrect="off" spellCheck={false} maxLength={1200}
           value={value} disabled={checked === true}
           onFocus={e => {
-            e.currentTarget.setSelectionRange(value.length, value.length);
             rememberSelection(e.currentTarget);
           }}
           onPointerDown={onActivate}

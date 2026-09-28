@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import {
   checkSession,
+  PRACTICE_GROUP_SIZE,
   inputCharacters,
   diffWords,
   expected,
@@ -204,7 +205,7 @@ function SentenceImporter({
         </p>
       )}
       <div className="modal-actions">
-        <span className="muted">{rows.length} 句 · 自动分成每组 5 句练习</span>
+        <span className="muted">{rows.length} 句 · 自动分成每组 {PRACTICE_GROUP_SIZE} 句练习</span>
         {preview ? (
           <>
             <button
@@ -319,7 +320,7 @@ function ChooseSession({
       {deck && (
         <div className="part-grid">
           {Array.from(
-            { length: Math.ceil(deck.sentences.length / 5) },
+            { length: Math.ceil(deck.sentences.length / PRACTICE_GROUP_SIZE) },
             (_, i) => (
               <button
                 className={part === i ? "part selected" : "part"}
@@ -328,7 +329,7 @@ function ChooseSession({
               >
                 第 {i + 1} 组{" "}
                 <small>
-                  {i * 5 + 1}–{Math.min((i + 1) * 5, deck.sentences.length)} 句
+                  {i * PRACTICE_GROUP_SIZE + 1}–{Math.min((i + 1) * PRACTICE_GROUP_SIZE, deck.sentences.length)} 句
                 </small>
               </button>
             ),
@@ -351,7 +352,7 @@ function ChooseSession({
       <button
         className="button primary full"
         disabled={!deck?.sentences.length}
-        onClick={() => deck && start(deck, part * 5, direct)}
+        onClick={() => deck && start(deck, part * PRACTICE_GROUP_SIZE, direct)}
       >
         开始这一组 <ArrowRight size={18} />
       </button>
@@ -396,6 +397,7 @@ export default function App() {
     autoPlayed = useRef(""),
     pendingAutoAudio = useRef(false),
     narrationRef = useRef<HTMLAudioElement | null>(null),
+    playbackGeneration = useRef(0),
     saveId = useRef(0);
   const speechSupported =
     typeof window !== "undefined" &&
@@ -416,7 +418,7 @@ export default function App() {
           if (!s.session && s.decks[0]?.sentences.length)
             s.session = makeSession(
               s.decks[0].name,
-              s.decks[0].sentences.slice(0, 5),
+              s.decks[0].sentences.slice(0, PRACTICE_GROUP_SIZE),
               s.settings.strict,
               false,
               s.settings.practiceMode ?? "typing",
@@ -582,6 +584,7 @@ export default function App() {
     editing,
   ]);
   useEffect(() => {
+    playbackGeneration.current++;
     narrationRef.current?.pause();
     narrationRef.current = null;
     setSpeaking(false);
@@ -589,7 +592,9 @@ export default function App() {
       window.speechSynthesis.cancel();
     }
     return () => {
+      playbackGeneration.current++;
       narrationRef.current?.pause();
+      if (speechSupported) window.speechSynthesis.cancel();
     };
   }, [session?.index, session?.id, page, speechSupported]);
   useEffect(() => {
@@ -646,7 +651,7 @@ export default function App() {
             settings: { ...previous.settings, practiceMode: mode },
             session: makeSession(
               deck.name,
-              deck.sentences.slice(offset, offset + 5),
+              deck.sentences.slice(offset, offset + PRACTICE_GROUP_SIZE),
               state.settings.strict,
               direct,
               mode,
@@ -709,7 +714,7 @@ export default function App() {
       setSession(
         makeSession(
           "到期复习",
-          sentences.slice(0, 5),
+          sentences.slice(0, PRACTICE_GROUP_SIZE),
           state.settings.strict,
           true,
         ),
@@ -773,6 +778,9 @@ export default function App() {
   const play = (restart = false, automatic = false) => {
     if (!task || !session) return;
     pendingAutoAudio.current = false;
+    const generation = ++playbackGeneration.current;
+    const active = () => playbackGeneration.current === generation;
+    let remaining = state.settings.readRepeats ?? 1;
     if (speaking && !restart) {
       if (speechSupported) window.speechSynthesis.cancel();
       narrationRef.current?.pause();
@@ -787,23 +795,33 @@ export default function App() {
       const audio = new Audio(currentAudio);
       narrationRef.current = audio;
       audio.playbackRate = state.settings.rate;
-      audio.onended = () => setSpeaking(false);
+      const begin = () => {
+        if (!active()) return;
+        void audio.play().catch((error: DOMException) => {
+          if (!active()) return;
+          playbackGeneration.current++;
+          setSpeaking(false);
+          pendingAutoAudio.current = error.name === "NotAllowedError";
+          setNotice(pendingAutoAudio.current
+            ? "点击句子或开始打字，即可开启自动朗读。"
+            : "播放未能启动，请再点一次朗读。");
+        });
+      };
+      audio.onended = () => {
+        if (!active()) return;
+        if (--remaining > 0) { audio.currentTime = 0; begin(); }
+        else setSpeaking(false);
+      };
       audio.onerror = () => {
+        if (!active()) return;
+        playbackGeneration.current++;
         setSpeaking(false);
         setNotice("音频暂时无法播放，请重新导入音频包或检查网络。");
       };
       setSpeaking(true);
       if (!automatic && task.phase === "recall" && session.mode !== "dictation")
         setSession({ ...session, currentHelp: true });
-      void audio.play().catch((error: DOMException) => {
-        setSpeaking(false);
-        pendingAutoAudio.current = error.name === "NotAllowedError";
-        setNotice(
-          pendingAutoAudio.current
-            ? "点击句子或开始打字，即可开启自动朗读。"
-            : "播放未能启动，请再点一次朗读。",
-        );
-      });
+      begin();
       return;
     }
     if (!speechSupported) return;
@@ -811,24 +829,32 @@ export default function App() {
       setNotice("设备暂无可用的英语语音，仍可继续文字练习。");
       return;
     }
-    const u = new SpeechSynthesisUtterance(task.sentence.en);
-    u.voice = voices.find((v) => /^en[-_]GB$/i.test(v.lang)) ?? voices[0];
-    u.lang = u.voice.lang;
-    u.rate = state.settings.rate;
-    u.onend = () => setSpeaking(false);
-    u.onerror = (event) => {
-      setSpeaking(false);
-      pendingAutoAudio.current = event.error === "not-allowed";
-      setNotice(
-        pendingAutoAudio.current
+    const speakNext = () => {
+      if (!active()) return;
+      const u = new SpeechSynthesisUtterance(task.sentence.en);
+      u.voice = voices.find((v) => /^en[-_]GB$/i.test(v.lang)) ?? voices[0];
+      u.lang = u.voice.lang;
+      u.rate = state.settings.rate;
+      u.onend = () => {
+        if (!active()) return;
+        if (--remaining > 0) speakNext();
+        else setSpeaking(false);
+      };
+      u.onerror = (event) => {
+        if (!active()) return;
+        playbackGeneration.current++;
+        setSpeaking(false);
+        pendingAutoAudio.current = event.error === "not-allowed";
+        setNotice(pendingAutoAudio.current
           ? "点击句子或开始打字，即可开启自动朗读。"
-          : "这次朗读未能播放，请检查设备语音设置。",
-      );
+          : "这次朗读未能播放，请检查设备语音设置。");
+      };
+      window.speechSynthesis.speak(u);
     };
     if (!automatic && task.phase === "recall" && session.mode !== "dictation")
       setSession({ ...session, currentHelp: true });
     setSpeaking(true);
-    window.speechSynthesis.speak(u);
+    speakNext();
   };
   playRef.current = () => play(true, true);
   const surface = (reveal: boolean) =>
@@ -1508,7 +1534,7 @@ export default function App() {
                   <div className="eyebrow">YOUR COLLECTION</div>
                   <h2>{activeDeck?.name ?? "你的句库还是空的"}</h2>
                   <p className="muted">
-                    {activeDeck?.sentences.length ?? 0} 句 · 每 5
+                    {activeDeck?.sentences.length ?? 0} 句 · 每 {PRACTICE_GROUP_SIZE}
                     句，练习一个小关卡
                   </p>
                 </div>
@@ -1626,7 +1652,7 @@ export default function App() {
                 onClick={() => startReview(due)}
               >
                 <RotateCcw size={17} />
-                开始复习{due.length > 5 ? "（前 5 句）" : ""}
+                开始复习{due.length > PRACTICE_GROUP_SIZE ? `（前 ${PRACTICE_GROUP_SIZE} 句）` : ""}
               </button>
             </div>
             <div className="library-card">
@@ -1774,6 +1800,21 @@ export default function App() {
                 })
               }
             />
+          </label>
+          <p className="muted voice-note">
+            每句朗读次数包含首次播放，练习中的自动朗读和手动朗读均适用；更改后从下次播放生效。
+          </p>
+          <label className="field">
+            每句朗读次数
+            <input type="number" aria-label="每句朗读次数" min="1" max="100" step="1"
+              defaultValue={state.settings.readRepeats ?? 1}
+              onBlur={e => { e.currentTarget.value = String(state.settings.readRepeats ?? 1); }}
+              onChange={e => {
+                const count = Number(e.target.value);
+                if (Number.isInteger(count) && count >= 1 && count <= 100)
+                  setState({...state, settings: {...state.settings, readRepeats: count}});
+              }} />
+            <small>可设置 1–100 次，默认 1 次；点击“停止”可随时结束。</small>
           </label>
           <p className="muted voice-note">
             <Headphones size={18} />

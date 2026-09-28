@@ -34,7 +34,7 @@ test('four British voices play distinct sentences and preserve the choice on ref
   const row = page.locator('.catalog-row').first();
   const label = await row.locator('.quiet').innerText();
   expect(label).toMatch(/ElevenLabs · (Alice|Lily|George|Daniel) · 英音/);
-  await page.getByRole('button', {name:'练这 5 条',exact:true}).click();
+  await page.getByRole('button', {name:'练这 20 条',exact:true}).click();
   await page.getByRole('button', {name:'确认',exact:true}).click();
   await expect(page.getByLabel('音频来源',{exact:true})).toHaveText(label.trim());
   await expect.poll(() => page.evaluate(() => Number((window as any).__lastAudio?.duration) || 0)).toBeGreaterThan(1);

@@ -4,6 +4,7 @@ import {
   type Sentence,
   type State,
   makeSession,
+  PRACTICE_GROUP_SIZE,
 } from "./engine";
 export type CatalogSummary = {
   id: string;
@@ -71,7 +72,7 @@ export function startCatalog(
   sentences: Sentence[],
   direct: boolean,
 ): State {
-  const selected = sentences.slice(0, 5);
+  const selected = sentences.slice(0, PRACTICE_GROUP_SIZE);
   if (!selected.length) return state;
   const deckId = `saved:${id}`,
     old = state.decks.find((d) => d.id === deckId);

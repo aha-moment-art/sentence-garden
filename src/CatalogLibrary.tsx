@@ -14,7 +14,7 @@ import {
   type CatalogCollection,
   type CatalogSummary,
 } from "./catalog";
-import type { Sentence, Recording } from "./engine";
+import { PRACTICE_GROUP_SIZE, type Sentence, type Recording } from "./engine";
 import { audioSource, audioLabel, trackAudio } from "./audio";
 const names: Record<string, string> = {
   "british-ear": "British Ear",
@@ -116,13 +116,13 @@ export default function CatalogLibrary({
         .includes(query.toLowerCase()),
   );
   const maxPage = Math.max(1, Math.ceil(rows.length / 20)),
-    maxGroup = Math.max(1, Math.ceil(rows.length / 5));
+    maxGroup = Math.max(1, Math.ceil(rows.length / PRACTICE_GROUP_SIZE));
   const launch = (offset: number) => {
     if (!collection || collection.id !== selected?.id) return;
     start(
       `${collection.id}:${mode}`,
       `${names[collection.project]} · ${collection.name}${mode === "words" ? " · 词汇" : ""}`,
-      rows.slice(offset, offset + 5),
+      rows.slice(offset, offset + PRACTICE_GROUP_SIZE),
       direct,
     );
   };
@@ -133,7 +133,7 @@ export default function CatalogLibrary({
           <div className="eyebrow">FROM YOUR PROJECTS</div>
           <h2>熟悉的素材，新的练习方式。</h2>
           <p>
-            按原项目分类。每次选 5
+            按原项目分类。每次选 {PRACTICE_GROUP_SIZE}
             条开始，练过的内容会自动留在“我的句库”。
           </p>
         </div>
@@ -290,9 +290,9 @@ export default function CatalogLibrary({
                     <button
                       className="button primary"
                       disabled={!rows.length}
-                      onClick={() => launch((group - 1) * 5)}
+                      onClick={() => launch((group - 1) * PRACTICE_GROUP_SIZE)}
                     >
-                      练这 5 条 <ArrowRight size={17} />
+                      练这 {Math.min(PRACTICE_GROUP_SIZE, Math.max(0, rows.length - (group - 1) * PRACTICE_GROUP_SIZE))} 条 <ArrowRight size={17} />
                     </button>
                   </div>
                   <div className="library-card catalog-rows" ref={region}>

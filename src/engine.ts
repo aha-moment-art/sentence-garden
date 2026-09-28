@@ -50,6 +50,7 @@ export type State = {
     strict: boolean;
     sound: boolean;
     rate: number;
+    readRepeats?: number;
     soundVersion?: 1;
     practiceMode?: PracticeMode;
   };
@@ -57,6 +58,7 @@ export type State = {
   history: { id: string; date: string; count: number; independent: number }[];
 };
 export const uid = () => crypto.randomUUID();
+export const PRACTICE_GROUP_SIZE = 20;
 export const words = (s: string) =>
   s.match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu) ?? [];
 export const normalized = (s: string) =>
@@ -419,6 +421,7 @@ export function initialState(): State {
       strict: false,
       sound: true,
       rate: 0.85,
+      readRepeats: 1,
       soundVersion: 1,
       practiceMode: "typing",
     },
@@ -530,6 +533,7 @@ export function validateState(value: unknown): State {
   if (
     !bool(st.strict) ||
     !bool(st.sound) ||
+    (st.readRepeats !== undefined && (!Number.isInteger(st.readRepeats) || Number(st.readRepeats) < 1 || Number(st.readRepeats) > 100)) ||
     (st.practiceMode !== undefined &&
       !["typing", "dictation"].includes(String(st.practiceMode))) ||
     typeof st.rate !== "number" ||
@@ -643,6 +647,7 @@ export function validateState(value: unknown): State {
       sound: v.settings.soundVersion === 1 ? v.settings.sound : true,
       soundVersion: 1,
       rate: v.settings.rate,
+      readRepeats: v.settings.readRepeats ?? 1,
       ...(v.settings.practiceMode
         ? { practiceMode: v.settings.practiceMode }
         : {}),

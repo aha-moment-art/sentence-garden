@@ -104,7 +104,7 @@ describe("complete project catalog", () => {
 });
 describe("catalog practice and audio integrity", () => {
   const c = collections.find((c) => c.project === "BritSpeak")!;
-  it("saves only the selected five entries, preserves personal records and avoids duplicates on replay", () => {
+  it("keeps a short final group intact, preserves personal records and avoids duplicates on replay", () => {
     const before = initialState();
     before.reviews["sample-1"] = {
       step: 1,
@@ -116,8 +116,8 @@ describe("catalog practice and audio integrity", () => {
     expect(first.decks[0]).toEqual(before.decks[0]);
     expect(first.reviews).toEqual(before.reviews);
     expect(first.settings).toEqual(before.settings);
-    expect(first.decks.at(-1)?.sentences).toHaveLength(5);
-    expect(first.session?.tasks).toHaveLength(5);
+    expect(first.decks.at(-1)?.sentences).toHaveLength(6);
+    expect(first.session?.tasks).toHaveLength(6);
     expect(first.session?.mode).toBe('typing');
     const repeated = startCatalog(first, c.id, c.name, c.sentences, true);
     expect(repeated.decks).toHaveLength(2);
