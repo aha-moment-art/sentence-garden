@@ -1,6 +1,6 @@
 import {test, expect} from '@playwright/test';
 
-test('continuous typing paints the exact input by the first frame and uses a visible native caret', async ({page}) => {
+test('continuous typing paints the exact input by the first frame without a guiding caret', async ({page}) => {
   await page.addInitScript(() => {
     (window as any).__frames = [];
     document.addEventListener('input', event => {
@@ -22,9 +22,10 @@ test('continuous typing paints the exact input by the first frame and uses a vis
   const frames = await page.evaluate(() => (window as any).__frames);
   expect(frames.length).toBe(value.length);
   expect(frames.every((f: any) => f.value === f.painted && f.caret === f.actualCaret)).toBe(true);
-  expect(await input.evaluate(el => getComputedStyle(el).caretColor)).toBe('rgb(29, 95, 165)');
+  expect(await input.evaluate(el => getComputedStyle(el).caretColor)).toBe('rgba(0, 0, 0, 0)');
   expect(await input.evaluate(el => getComputedStyle(el).opacity)).toBe('1');
   await expect(page.locator('.inline-caret')).toHaveCount(0);
+  await expect(page.locator('.letter.cursor')).toHaveCount(0);
 });
 
 test('native hit testing stays aligned after wrapping, punctuation, and enlarged text', async ({page}) => {

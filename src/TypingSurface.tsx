@@ -21,7 +21,6 @@ export default function TypingSurface({target, value, strict, reveal, checked, i
   const [selection, setSelection] = useState({value, start: value.length, end: value.length, direction: 'none'});
   const start = selection.value === value ? selection.start : value.length;
   const end = selection.value === value ? selection.end : value.length;
-  const focus = selection.direction === 'backward' ? start : end;
   const rememberSelection = (el: HTMLTextAreaElement) => {
     // Snapshot now: a queued React updater must not read a later DOM value.
     const next = {value: el.value, start: el.selectionStart, end: el.selectionEnd, direction: el.selectionDirection};
@@ -33,7 +32,6 @@ export default function TypingSurface({target, value, strict, reveal, checked, i
   const overflow = entered.filter(c => c.extra).map(c => c.char).join('');
   const wrong = isComposing ? [] : entered.filter(c => c.status === 'mistyped');
   const firstWrong = reveal ? copyCharacters(target, value, strict).find(c => c.status === 'mistyped') : undefined;
-  const cursorIndex = characters.findIndex(c => c.start === focus);
   const displayChar = (char: string) => /\s/.test(char) ? '空格' : char;
 
   return (
@@ -45,7 +43,7 @@ export default function TypingSurface({target, value, strict, reveal, checked, i
             <span key={i} data-position={i} data-input-offset={c.entered ? c.start : undefined}
               data-entered={c.entered && c.status === 'mistyped' ? c.char : undefined}
               className={'letter ' + (isComposing ? '' : c.status) +
-                (c.extra ? ' extra-input' : '') + (i === cursorIndex && !checked ? ' cursor' : '') +
+                (c.extra ? ' extra-input' : '') +
                 (/\s/.test(c.char) ? ' space' : '') +
                 (start !== end && c.entered && c.start >= start && c.end <= end ? ' selected-letter' : '')}>
               {c.char}

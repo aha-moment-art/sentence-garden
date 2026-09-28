@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-test("large inline typing colors each key, shows next letter, supports corrections and tablet focus", async ({
+test("large inline typing colors entered letters without a cursor guide, supports corrections and tablet focus", async ({
   page,
 }) => {
   await page.goto("./");
@@ -11,7 +11,7 @@ test("large inline typing colors each key, shows next letter, supports correctio
     "0px",
   );
   expect(await input.evaluate((e) => getComputedStyle(e).opacity)).toBe("1");
-  expect(await input.evaluate((e) => getComputedStyle(e).caretColor)).not.toBe('rgba(0, 0, 0, 0)');
+  expect(await input.evaluate((e) => getComputedStyle(e).caretColor)).toBe('rgba(0, 0, 0, 0)');
   expect(
     await page
       .locator(".inline-sentence")
@@ -19,7 +19,7 @@ test("large inline typing colors each key, shows next letter, supports correctio
   ).toBeGreaterThanOrEqual(40);
   await input.pressSequentially("Sma");
   await expect(page.locator(".target-sentence .typed")).toHaveCount(3);
-  await expect(page.locator(".target-sentence .cursor")).toHaveText("l");
+  await expect(page.locator(".target-sentence .cursor")).toHaveCount(0);
   await input.pressSequentially("x");
   await expect(page.locator(".target-sentence .mistyped")).toHaveCount(1);
   await input.press("Backspace");
@@ -28,7 +28,7 @@ test("large inline typing colors each key, shows next letter, supports correctio
     .locator(".target-sentence")
     .evaluate((e) => [
       getComputedStyle(e.querySelector(".typed")!).color,
-      getComputedStyle(e.querySelector(".cursor")!).color,
+      getComputedStyle(e.querySelectorAll(".letter")[3]).color,
     ]);
   expect(colors[0]).not.toBe(colors[1]);
   await input.fill("Small" + " ".repeat(40) + "steps");

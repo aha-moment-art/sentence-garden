@@ -68,24 +68,12 @@
   text-underline-offset: 8px;
   border: 0;
 }
-.typing-surface .letter.cursor {
-  background-color: transparent;
-  border: 0;
-}
 .typing-surface .letter.selected-letter { background-color: #c8defa; }
 .keystroke-feedback { margin-top: 20px; min-height: 1.5em; font-size: 0.8rem; line-height: 1.5; color: #687581; pointer-events: none; }
 .keystroke-feedback b { font-weight: 500; }
 .recall-cue { margin: 14px 0; color: var(--green); font-size: 1.1rem; }
 .key-correct, .legend-correct { color: #137a45; }
 .key-error, .legend-error { color: #b42332; }
-.typing-surface .inline-caret {
-  display: inline-block;
-  width: 3px;
-  height: 0.95em;
-  background: var(--green);
-  vertical-align: -0.06em;
-  margin-right: 3px;
-}
 .typing-surface .surface-placeholder {
   font-size: 1.6rem;
   color: #abb5af;
@@ -109,7 +97,7 @@
   opacity: 1;
   background: transparent;
   color: transparent;
-  caret-color: #1d5fa5;
+  caret-color: transparent;
   overflow: hidden;
   cursor: text;
 }
@@ -908,10 +896,6 @@ main {
   background: #fce8e5;
   color: #b64644;
   border-bottom: 2px solid #b64644;
-}
-.target-sentence .cursor {
-  background: #e2f1e9;
-  border-bottom: 2px solid var(--green);
 }
 .translation {
   font-size: 0.8125rem;

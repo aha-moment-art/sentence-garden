@@ -27,14 +27,13 @@ test('each keystroke paints immediately, explains mistakes and keeps click/arrow
   await input.press('End');
   await input.pressSequentially('ll');
   await expect(input).toHaveValue('Small');
-  await expect(page.locator('.letter.cursor')).toHaveText(' ');
-  await expect(page.locator('.letter.cursor')).toHaveClass(/space/);
+  await expect(page.locator('.letter.cursor')).toHaveCount(0);
   await input.press('ArrowLeft');
-  await expect(page.locator('.letter.cursor')).toHaveText('l');
+  await expect(page.locator('.letter.cursor')).toHaveCount(0);
   expect(await input.evaluate(el=>(el as HTMLTextAreaElement).selectionStart)).toBe(4);
   await input.press('Backspace');
   await expect(input).toHaveValue('Smal');
-  await expect(page.locator('.letter.cursor')).toHaveText('l');
+  await expect(page.locator('.letter.cursor')).toHaveCount(0);
   await input.pressSequentially('l');
   await input.press('End');
   await input.pressSequentially('s');
