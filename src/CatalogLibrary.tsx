@@ -15,7 +15,7 @@ import {
   type CatalogSummary,
 } from "./catalog";
 import type { Sentence, Recording } from "./engine";
-import { audioSource, audioLabel } from "./audio";
+import { audioSource, audioLabel, trackAudio } from "./audio";
 const names: Record<string, string> = {
   "british-ear": "British Ear",
   WordLeap: "WordLeap",
@@ -23,10 +23,10 @@ const names: Record<string, string> = {
   "level-up-cards": "Level Up",
 };
 const descriptions: Record<string, string> = {
-  "british-ear": "真人英式英语 · ARU 与视频逐句原声",
+  "british-ear": "ARU 短句与视频逐句练习",
   WordLeap: "IELTS / TOEFL / 四六级 / 专四专八 / PTE",
-  BritSpeak: "英国议会现场 · 中英对照跟读",
-  "level-up-cards": "每日例句 · 词条英美音 · 整段听力",
+  BritSpeak: "英国议会素材 · 中英对照跟读",
+  "level-up-cards": "每日例句 · 词汇练习 · 整段听力",
 };
 export default function CatalogLibrary({
   back,
@@ -133,7 +133,7 @@ export default function CatalogLibrary({
           <div className="eyebrow">FROM YOUR PROJECTS</div>
           <h2>熟悉的素材，新的练习方式。</h2>
           <p>
-            保留原项目的分类与声音。每次选 5
+            按原项目分类。每次选 5
             条开始，练过的内容会自动留在“我的句库”。
           </p>
         </div>
@@ -295,11 +295,6 @@ export default function CatalogLibrary({
                       练这 5 条 <ArrowRight size={17} />
                     </button>
                   </div>
-                  {project === "level-up-cards" && mode === "sentences" && (
-                    <p className="catalog-info">
-                      例句新增 ElevenLabs 四种英音，按句固定分配；原有单词英美音仍在“词汇练习”里播放。
-                    </p>
-                  )}
                   <div className="library-card catalog-rows" ref={region}>
                     {rows.slice(page * 20, (page + 1) * 20).map((s, i) => (
                       <article className="catalog-row" key={s.id}>
@@ -321,17 +316,7 @@ export default function CatalogLibrary({
                             </a>
                           )}
                           <div className="catalog-row-actions">
-                            {s.recordings?.map((r) => (
-                              <button
-                                key={r.label}
-                                className="button quiet"
-                                onClick={() => play(r)}
-                              >
-                                <Volume2 size={15} />
-                                {r.label}
-                              </button>
-                            ))}
-                            {!s.recordings?.length && audioSource(s.en, [], s) && (
+                            {audioSource(s.en, [], s) && (
                               <button className="button quiet" onClick={() => play({
                                 label: audioLabel(s.en, [], s),
                                 text: s.en,
@@ -340,7 +325,7 @@ export default function CatalogLibrary({
                                 <Volume2 size={15} />{audioLabel(s.en, [], s)}
                               </button>
                             )}
-                            {!s.recordings?.length && !audioSource(s.en, [], s) && (
+                            {!audioSource(s.en, [], s) && (
                               <span className="no-source-audio">
                                 暂无独立配音 · 练习时使用设备朗读
                               </span>
@@ -387,7 +372,6 @@ export default function CatalogLibrary({
                   {!!collection.tracks.length && (
                     <div className="catalog-tracks">
                       <h3>本日整段听力</h3>
-                      <p>来自原日历的完整录音，与上面的单句练习分开播放。</p>
                       {collection.tracks.map((t) => (
                         <div className="catalog-track" key={t.url}>
                           <a
@@ -397,10 +381,11 @@ export default function CatalogLibrary({
                           >
                             {t.title}
                           </a>
+                          <small>{trackAudio(t.url).label}</small>
                           <audio
                             controls
                             preload="none"
-                            src={t.url}
+                            src={trackAudio(t.url).url}
                             aria-label={t.title}
                           />
                         </div>

@@ -2,10 +2,11 @@ import {describe,it,expect} from 'vitest';
 import {validateAudio,mergeAudio,audioLabel} from './audio';
 import {voiceForText,ttsVoices} from './tts-voices';
 describe('portable audio packs',()=>{
-  it('keeps voice provenance through validation and overrides the built-in label',()=>{
+  it('keeps imported provenance but prefers verified ElevenLabs library audio',()=>{
     const clip={text:'Small steps lead to meaningful progress.',audio:'data:audio/mpeg;base64,SUQz',voice:'Alice',model:'eleven_multilingual_v2'};
     expect(validateAudio([clip])).toEqual([clip]);
-    expect(audioLabel(clip.text,[clip])).toBe('导入配音 · Alice');
+    expect(audioLabel(clip.text,[clip])).toBe('ElevenLabs · George · 英音');
+    expect(audioLabel('A private sentence.',[{...clip,text:'A private sentence.'}])).toBe('导入配音 · Alice');
     expect(()=>validateAudio([{...clip,voice:{name:'Alice'}}])).toThrow();
   });
   it('assigns all four voices deterministically, including when order changes',()=>{

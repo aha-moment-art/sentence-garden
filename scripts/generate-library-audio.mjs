@@ -20,8 +20,8 @@ for (const [[text, file], i] of Object.entries(demo).map((entry, i) => [entry, i
     manifest[text] = { file, voice: voice.name, voiceId: voice.id, model: ttsModel };
 }
 for (const collection of read('public/library/index.json').collections) {
-  for (const sentence of read(`public/${collection.file}`).sentences) {
-    if (sentence.recordings?.some(r => r.text === sentence.en)) continue;
+  const contents = read(`public/${collection.file}`);
+  for (const sentence of [...contents.sentences, ...contents.words]) {
     const text = sentence.en;
     if (requests.has(text)) continue;
     const voice = voiceForText(text);

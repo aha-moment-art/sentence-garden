@@ -1,10 +1,16 @@
 import bundled from "./demo-audio.json";
 import generated from "./generated-audio.json";
+import generatedTracks from "./generated-tracks.json";
 import { isProjectAudioUrl, type Sentence } from "./engine";
 export type AudioClip = { text: string; audio: string; voice?: string; model?: string };
 type GeneratedAudio = { file: string; voice: string; voiceId: string; model: string };
 const generatedClips = generated as Record<string, GeneratedAudio>;
 const generatedClip = (text: string) => Object.hasOwn(generatedClips, text) ? generatedClips[text] : undefined;
+export function trackAudio(url: string) {
+  const tracks = generatedTracks as Record<string, GeneratedAudio>;
+  const entry = Object.hasOwn(tracks, url) ? tracks[url] : undefined;
+  return entry ? { url: new URL(entry.file, document.baseURI).href, label: `ElevenLabs · ${entry.voice} · 英音` } : { url, label: "原项目录音" };
+}
 export type AudioPack = {
   format: "sentence-garden-audio";
   version: 1;
@@ -55,8 +61,6 @@ export function audioSource(
   clips: AudioClip[],
   sentence?: Sentence,
 ) {
-  const clip = clips.find((c) => c.text === text);
-  if (clip) return clip.audio;
   const ready = generatedClip(text);
   if (ready) {
     const url = new URL(ready.file, document.baseURI);
@@ -64,6 +68,8 @@ export function audioSource(
     if (ready.file.startsWith("audio/sample-")) url.searchParams.set("voice", ready.voiceId);
     return url.href;
   }
+  const clip = clips.find((c) => c.text === text);
+  if (clip) return clip.audio;
   const recording = sentence?.recordings?.find(
     (r) => r.text === text && isProjectAudioUrl(r.url),
   );
@@ -75,10 +81,10 @@ export function audioSource(
 }
 
 export function audioLabel(text: string, clips: AudioClip[], sentence?: Sentence) {
-  const clip = clips.find(c => c.text === text);
-  if (clip) return clip.voice ? `导入配音 · ${clip.voice}` : "导入配音";
   const ready = generatedClip(text);
   if (ready) return `ElevenLabs · ${ready.voice} · 英音`;
+  const clip = clips.find(c => c.text === text);
+  if (clip) return clip.voice ? `导入配音 · ${clip.voice}` : "导入配音";
   const recording = sentence?.recordings?.find(r => r.text === text && isProjectAudioUrl(r.url));
   if (recording) return recording.label || "原项目录音";
   if (typeof (bundled as Record<string, string>)[text] === "string") return "ElevenLabs · George · 英音";

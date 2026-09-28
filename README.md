@@ -40,11 +40,11 @@ node scripts/import-projects.mjs /absolute/path/outside-repo/source-snapshots
 
 ## 自己的 ElevenLabs 音频
 
-首页示例依次使用 **George、Alice、Lily、Daniel、George**。新增句子配音在这四种英音间按文本固定分配，模型统一为 `eleven_multilingual_v2`；同一句重播、复习或刷新都使用相同的 MP3。练习页和项目句库标明配音来源及音色。已有项目原声继续保留，个人导入音频优先播放。
+首页示例依次使用 **George、Alice、Lily、Daniel、George**。新增句子配音在这四种英音间按文本固定分配，模型统一为 `eleven_multilingual_v2`；同一句重播、复习或刷新都使用相同的 MP3。练习页和项目句库标明配音来源及音色，并优先播放已经生成的 ElevenLabs 配音。
 
 播放现成音频不会调用生成接口。自己的新句子可通过音频包导入；没有配音时明确显示“设备朗读”，使用设备可用的英语语音。GitHub Pages 不持有 API key，也不会在你输入新句子时自动付费生成。
 
-公开音频清单为 `src/generated-audio.json`，包含逐句文本、文件、音色 ID 和模型。`node scripts/generate-library-audio.mjs --audit` 检查示例和所有缺少原配音的公开例句是否已生成；去掉 `--audit` 可在本机补齐缺失音频。脚本缓存逐句结果、最多同时生成两句，遇到 API 错误停止且不自动重试。旧默认音色预计于 2026 年底停止新生成，已保存的 MP3 不受影响。
+公开音频清单为 `src/generated-audio.json`，包含逐句文本、文件、音色 ID 和模型。`node scripts/generate-library-audio.mjs --audit` 检查所有示例、公开例句和词汇是否已生成，包括带原配音的内容；只有 pending 为 0 才表示这部分全量完成（整段听力需另行转换核验）。去掉 `--audit` 可在本机补齐缺失音频。脚本缓存逐句结果、最多同时生成两句，遇到 API 错误停止且不自动重试。
 
 生成自己的音频包：
 

@@ -1777,7 +1777,7 @@ export default function App() {
           </label>
           <p className="muted voice-note">
             <Headphones size={18} />
-            优先播放已导入的音频，其次使用原项目配音或示例英音。已有录音播放不消耗生成额度；未配音的句子使用设备语音。
+            优先播放句库的 ElevenLabs 英音，其次使用导入音频。播放已生成的音频不消耗生成额度。
           </p>
           <p className="muted small">
             已导入 {audioClips.length}{" "}
