@@ -78,11 +78,11 @@ test("complete group, correction, hints, retry, review and portable records", as
   await expect(page.locator(".pill")).toHaveText("整句默写");
   await expect(page.locator(".target-sentence")).toHaveCount(0);
   await page.getByRole("button", { name: "给我一点提示" }).click();
-  await expect(page.locator(".hint-box")).toContainText("P");
+  await expect(page.locator(".recall-cue")).toContainText("P");
   await page.getByRole("button", { name: "提示完整词" }).click();
-  await expect(page.locator(".hint-box")).toContainText("Practice");
+  await expect(page.locator(".recall-cue")).toContainText("Practice");
   await page.getByRole("button", { name: "查看原句" }).click();
-  await expect(page.locator(".hint-box")).toContainText(
+  await expect(page.locator(".recall-cue")).toContainText(
     "Practice makes progress.",
   );
   await submit(page, "practice makes progress");

@@ -83,6 +83,7 @@
 .typing-surface .letter.selected-letter { background-color: #c8defa; }
 .keystroke-feedback { margin-top: 20px; min-height: 1.5em; font-size: 0.8rem; line-height: 1.5; color: #687581; pointer-events: none; }
 .keystroke-feedback b { font-weight: 500; }
+.recall-cue { margin: 14px 0; color: var(--green); font-size: 1.1rem; }
 .key-correct, .legend-correct { color: #137a45; }
 .key-error, .legend-error { color: #b42332; }
 .typing-surface .inline-caret {

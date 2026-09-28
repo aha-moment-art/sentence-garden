@@ -1276,50 +1276,15 @@ export default function App() {
                     )}
                   </div>
                   <div className="typing-zone">
-                    <div className="input-heading">
-                      <label htmlFor="typing-input">
-                        {task.phase === "copy"
-                          ? "正确变绿 · 错误标红 · 下划线提示下一字"
-                          : task.phase === "cloze"
-                            ? "按顺序输入缺失的单词，用空格分隔"
-                            : session.mode === "dictation"
-                              ? "听清楚后，直接输入句子"
-                              : "根据提示，输入整句"}
-                      </label>
-                      <span>
-                        {session.strict ? "严格核对" : "忽略大小写与标点"}
-                      </span>
-                    </div>
                     {task.phase !== "copy" && surface(false)}
-                    {session.hint > 0 && (
-                      <div className="hint-box">
-                        <Lightbulb size={17} />
-                        <div>
-                          {session.hint === 1 ? (
-                            <>
-                              下一个词的首字母：
-                              <strong>
-                                {firstUnfinishedWord(
-                                  expected(task),
-                                  session.input,
-                                ).slice(0, 1)}
-                              </strong>
-                            </>
-                          ) : session.hint === 2 ? (
-                            <>
-                              下一个词：
-                              <strong lang="en">
-                                {firstUnfinishedWord(
-                                  expected(task),
-                                  session.input,
-                                )}
-                              </strong>
-                            </>
-                          ) : (
-                            <span lang="en">{task.sentence.en}</span>
-                          )}
-                        </div>
-                      </div>
+                    {task.phase !== "copy" && session.hint > 0 && (
+                      <p className="recall-cue" aria-label="回忆提示" lang="en">
+                        {session.hint === 1
+                          ? firstUnfinishedWord(expected(task), session.input).slice(0, 1)
+                          : session.hint === 2
+                            ? firstUnfinishedWord(expected(task), session.input)
+                            : task.sentence.en}
+                      </p>
                     )}
                     <div aria-live="polite">
                       {session.checked === false && (
@@ -1402,11 +1367,9 @@ export default function App() {
                         <small className="audio-source" aria-label="音频来源">
                           {audioLabel(task.sentence.en, audioClips, task.sentence)}
                         </small>
-                        <button
+                        {task.phase !== "copy" && <button
                           className="button quiet"
-                          disabled={
-                            session.hint >= 3 || session.checked === true
-                          }
+                          disabled={session.hint >= 3 || session.checked === true}
                           onClick={hint}
                         >
                           <Lightbulb size={18} />
@@ -1419,7 +1382,7 @@ export default function App() {
                                   ? "查看原句"
                                   : "已显示原句"}
                           </span>
-                        </button>
+                        </button>}
                       </div>
                       {session.checked ? (
                         <button
@@ -1450,7 +1413,6 @@ export default function App() {
                       <ShieldCheck size={14} />
                       {saved ? "练习位置已保存" : "正在保存…"}
                     </span>
-                    <span>不用抢时间，记住更重要。</span>
                   </div>
                 </section>
               ) : (
@@ -1467,18 +1429,6 @@ export default function App() {
                   </button>
                 </section>
               )}
-              <div className="practice-note">
-                <span className="note-icon">
-                  <Leaf size={18} />
-                </span>
-                <div>
-                  <strong>每一次回忆，都在靠近熟悉。</strong>
-                  <p>忘记很正常。需要时给自己一点提示，再试一次就好。</p>
-                </div>
-                <span className="note-lines" aria-hidden="true">
-                  〰
-                </span>
-              </div>
             </section>
           </div>
         )}

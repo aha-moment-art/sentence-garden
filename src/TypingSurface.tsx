@@ -129,17 +129,14 @@ export default function TypingSurface({
           }
         }}
       />
-      <div className="keystroke-feedback" aria-live="polite" aria-atomic="true">
+      {(value || isComposing) && <div className="keystroke-feedback" aria-live="polite" aria-atomic="true">
         {isComposing ? <span>输入法输入中…</span> : wrong.length || overflow ? (
           <span className="key-error">{firstWrong?.actual !== undefined
             ? `输入了「${displayChar(firstWrong.actual)}」，这里应为「${displayChar(firstWrong.char)}」`
-            : overflow ? `多输入了「${overflow}」` : `有 ${wrong.length} 个字符需要修正`} · Backspace 删除修改</span>
+            : overflow ? `多输入了「${overflow}」` : `有 ${wrong.length} 个字符需要修正`}</span>
         ) : value ? <span className="key-correct">✓ {checked || matches(target,value,strict) ? '这一句输入正确' : '已输入的字符正确'}</span>
-          : <span><b className="legend-correct">绿色：正确</b> · <b className="legend-error">红底：错误</b> · 竖线：当前输入位置</span>}
-      </div>
-      <div className="surface-focus-hint" aria-hidden="true">
-        点击句子开始输入
-      </div>
+          : null}
+      </div>}
     </div>
   );
 }
