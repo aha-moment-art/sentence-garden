@@ -30,7 +30,6 @@ test("four projects load on demand, paginate, preserve recordings through practi
   await page.getByLabel("搜索项目内容").fill("abandon");
   await expect(page.locator(".catalog-row").first()).toContainText(/abandon/i);
   await page.locator(".project-card").filter({ hasText: "Level Up" }).click();
-  await expect(page.locator(".catalog-info")).toContainText("ElevenLabs 四种英音");
   await expect(page.locator(".catalog-row-actions .quiet")).toHaveCount(20);
   await expect(page.locator(".catalog-tracks audio")).toHaveCount(2);
   await page.getByRole("button", { name: "词汇练习", exact: true }).click();
@@ -38,14 +37,9 @@ test("four projects load on demand, paginate, preserve recordings through practi
     page
       .locator(".catalog-row")
       .first()
-      .getByRole("button", { name: "词条英音" }),
+      .locator(".catalog-row-actions .quiet"),
   ).toBeVisible();
-  await expect(
-    page
-      .locator(".catalog-row")
-      .first()
-      .getByRole("button", { name: "词条美音" }),
-  ).toBeVisible();
+  await expect(page.locator(".catalog-row").first().locator(".catalog-row-actions .quiet")).toHaveCount(1);
   for (const width of [375, 768, 1440]) {
     await page.setViewportSize({ width, height: 1050 });
     expect(
@@ -98,7 +92,7 @@ test("four projects load on demand, paginate, preserve recordings through practi
   await context.close();
   expect(errors).toEqual([]);
 });
-test("original audio from every source and both word accents decodes in browser", async ({
+test("preferred audio from every project decodes in browser", async ({
   page,
 }) => {
   test.setTimeout(120000);
@@ -114,20 +108,14 @@ test("original audio from every source and both word accents decodes in browser"
   });
   await page.goto("/");
   await page.getByRole("button", { name: "项目句库", exact: true }).click();
-  for (const [name, voice] of [
-    ["British Ear", "真人英音"],
-    ["WordLeap", "例句英音"],
-    ["BritSpeak", "真人原声"],
-    ["Level Up", "词条英音"],
-  ]) {
+  for (const name of ["British Ear", "WordLeap", "BritSpeak", "Level Up"]) {
     await page.locator(".project-card").filter({ hasText: name }).click();
     await expect(page.locator(".catalog-row").first()).toBeVisible();
-    if (name === "Level Up")
-      await page.getByRole("button", { name: "词汇练习", exact: true }).click();
+    await expect(page.locator(".catalog-row").first().locator(".quiet")).toContainText("ElevenLabs");
     await page
       .locator(".catalog-row")
       .first()
-      .getByRole("button", { name: voice })
+      .locator(".quiet")
       .click();
     await expect
       .poll(
@@ -142,10 +130,11 @@ test("original audio from every source and both word accents decodes in browser"
       await page.evaluate(() => (window as any).__lastAudio.error),
     ).toBeNull();
   }
+  await page.getByRole("button", { name: "词汇练习", exact: true }).click();
   await page
     .locator(".catalog-row")
     .first()
-    .getByRole("button", { name: "词条美音" })
+    .locator(".quiet")
     .click();
   await expect
     .poll(

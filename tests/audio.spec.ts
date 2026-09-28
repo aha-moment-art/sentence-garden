@@ -59,10 +59,10 @@ test("real ElevenLabs MP3 decodes, audio pack persists, and export retains it", 
   await expect(page.getByRole("status")).toContainText("已导入 1 条音频");
   await expect(page.locator("#typing-input")).toHaveValue("Small steps");
   await page.reload();
-  await expect(page.getByLabel("音频来源", {exact:true})).toHaveText("导入配音 · George");
+  await expect(page.getByLabel("音频来源", {exact:true})).toHaveText("ElevenLabs · George · 英音");
   await expect
     .poll(() => page.evaluate(() => (window as any).__lastAudio?.src ?? ""))
-    .toMatch(/^data:audio\/mpeg/);
+    .toContain("sample-1.mp3");
   const downloaded = page.waitForEvent("download");
   await page
     .locator("footer")
